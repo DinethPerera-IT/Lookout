@@ -8,7 +8,7 @@ readable: "password=hunter2" -> "password=<redacted>".
 False positives are cheap (a hex ID becomes <token>); false negatives leak.
 The rules therefore err on the side of redacting.
 
-Demo:  echo 'curl -H "Authorization: Bearer abc123def456"' | python3 -m ops_summary.redact
+Demo:  echo 'curl -H "Authorization: Bearer abc123def456"' | python3 -m lookout.redact
 """
 import re
 import sys

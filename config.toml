@@ -1,4 +1,4 @@
-# ops-summary configuration. No secrets here: those come from the environment (.env).
+# Lookout configuration. No secrets here: those come from the environment (.env).
 
 # How far back each run looks. Matches the hourly timer.
 window_minutes = 60
@@ -30,7 +30,7 @@ reason = "apt-daily runs before WiFi is fully up; harmless and recurring"
 
 [state]
 # Overridden by $STATE_DIRECTORY (set by systemd) or --state
-default_path = "~/.local/state/ops-summary/state.sqlite"
+default_path = "~/.local/state/lookout/state.sqlite"
 sample_retention_days = 30
 template_retention_days = 90
 

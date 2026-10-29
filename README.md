@@ -1,4 +1,6 @@
-# ops-summary
+# Lookout
+
+*Keeps watch over my homelab and raises its hand when something looks off.*
 
 An hourly, read-only job for my homelab. It collects logs and metrics, uses **deterministic rules** to decide whether anything is unusual, and posts the flagged facts to Discord. A **local** LLM (Ollama) adds a plain-English explanation on top. When nothing is unusual it stays silent.
 
@@ -6,7 +8,7 @@ An hourly, read-only job for my homelab. It collects logs and metrics, uses **de
 
 ## What is it?
 
-A second opinion layered on top of my real alerting. [Uptime Kuma](https://github.com/louislam/uptime-kuma) answers "is the service up?". ops-summary answers "is anything *odd*?": a disk filling up, an error burst in one service, a container that restarted, WiFi re-authenticating more than usual. It never replaces Kuma. Kuma also watches this job through a push-monitor heartbeat, so if ops-summary itself dies, I still get alerted.
+A second opinion layered on top of my real alerting. [Uptime Kuma](https://github.com/louislam/uptime-kuma) answers "is the service up?". Lookout answers "is anything *odd*?": a disk filling up, an error burst in one service, a container that restarted, WiFi re-authenticating more than usual. It never replaces Kuma. Kuma also watches this job through a push-monitor heartbeat, so if Lookout itself dies, I still get alerted.
 
 ## How does it work?
 
@@ -41,7 +43,7 @@ Each collector returns `{"ok": true, ...}` or `{"ok": false, "error": "..."}`. A
 
 ### Phase 2: redaction
 
-**What is it?** Before any log line is stored, printed, sent to the local LLM, or posted to Discord, `ops_summary/redact.py` replaces secrets and identifying data with placeholders:
+**What is it?** Before any log line is stored, printed, sent to the local LLM, or posted to Discord, `lookout/redact.py` replaces secrets and identifying data with placeholders:
 
 ```
 login password=hunter2                    →  login password=<redacted>
@@ -72,7 +74,7 @@ Trying to associate with aa:bb:… (SSID='…') → Trying to associate with <ma
 
 ### Phase 3: detection and state
 
-**What is it?** The part that decides. `ops_summary/detect.py` holds plain, deterministic rules. Each one reads the collected facts and returns *flags*. `ops_summary/state.py` keeps a small SQLite database, so the job remembers what's normal and what it has already told me.
+**What is it?** The part that decides. `lookout/detect.py` holds plain, deterministic rules. Each one reads the collected facts and returns *flags*. `lookout/state.py` keeps a small SQLite database, so the job remembers what's normal and what it has already told me.
 
 **The rules** (thresholds in `config.toml`, chosen from 14 days of this server's history):
 
@@ -117,7 +119,7 @@ Trying to associate with aa:bb:… (SSID='…') → Trying to associate with <ma
 **Proving the rules: scenario fixtures.** `tests/fixtures/scenarios/*.json` are small stories, run by run, with the expected outcome of each run: a disk filling up, an error burst, a novel error, warm-up, Prometheus down, several failures at once, flapping load, a unit that fails again after recovering, and a quiet hour. pytest checks every expectation. The CLI replays any of them in memory without touching the server:
 
 ```
-$ python3 -m ops_summary --fixture tests/fixtures/scenarios/disk.json
+$ python3 -m lookout --fixture tests/fixtures/scenarios/disk.json
   +   0 min  disk:/  new       warn
   +  60 min  disk:/  suppressed
   + 120 min  disk:/  worse     crit
@@ -129,9 +131,9 @@ On the live server, a dry run seeds a full 168 h baseline and reports **0 flags*
 
 ### Phase 4: Docker, through a read-only proxy
 
-**What is it?** A small `haproxy` container (`deploy/docker-socket-proxy/`) sits in front of Docker's API and lets through only three read-only requests. ops-summary talks to the proxy, never to Docker directly.
+**What is it?** A small `haproxy` container (`deploy/docker-socket-proxy/`) sits in front of Docker's API and lets through only three read-only requests. Lookout talks to the proxy, never to Docker directly.
 
-**Why not just use the Docker socket?** Access to `/var/run/docker.sock`, or membership of the `docker` group, is **root-equivalent**: `docker run -v /:/host …` gives a shell over the whole machine. A monitoring job doesn't need that power, so it shouldn't have it. If ops-summary (or anything that compromised it) only ever reaches the proxy, "read-only" is enforced by the proxy's config, not by trusting my code.
+**Why not just use the Docker socket?** Access to `/var/run/docker.sock`, or membership of the `docker` group, is **root-equivalent**: `docker run -v /:/host …` gives a shell over the whole machine. A monitoring job doesn't need that power, so it shouldn't have it. If Lookout (or anything that compromised it) only ever reaches the proxy, "read-only" is enforced by the proxy's config, not by trusting my code.
 
 **Why my own haproxy config instead of `tecnativa/docker-socket-proxy`?** I planned to use tecnativa with `CONTAINERS=1`. Checking what that allows showed it permits *every* GET under `/containers/`, including:
 - `/containers/<id>/json` (inspect), which shows every container's environment variables, where database passwords usually live
@@ -149,7 +151,7 @@ Everything else returns 403: start/stop/exec/create/delete, inspect, archive, ex
 
 Hardening: bound to `127.0.0.1` only, read-only filesystem, all Linux capabilities dropped, `no-new-privileges`, image pinned to `haproxy:3.2.25-alpine` (LTS branch).
 
-**Residual risk (honest):** any process on this machine can reach `127.0.0.1:2375` and list containers or read container logs. Logs sometimes contain secrets. ops-summary redacts them, but another reader wouldn't. This is far smaller than socket access, and the README says so rather than hiding it.
+**Residual risk (honest):** any process on this machine can reach `127.0.0.1:2375` and list containers or read container logs. Logs sometimes contain secrets. Lookout redacts them, but another reader wouldn't. This is far smaller than socket access, and the README says so rather than hiding it.
 
 **How restarts are detected without `inspect`.** Docker's event log was the obvious source, but it keeps only the last **256 events** in memory, and on this server healthcheck `exec` events fill that in about an hour. So the job compares *uptime* between runs instead. Docker shows rounded uptimes ("Up About an hour" means anywhere from 60 to 90 minutes), so each phrase is turned into a range `[min, max]`. A container **certainly** restarted if:
 
@@ -179,10 +181,10 @@ Containers never seen running (this server has 14 leftover `docker run` containe
 ## Usage
 
 ```bash
-python3 -m ops_summary --dry-run            # collect + detect, print flags as JSON
-python3 -m ops_summary --dry-run --stage collect   # just the collected facts
-python3 -m ops_summary --fixture tests/fixtures/scenarios/flapping.json   # replay a scenario
-echo 'password=hunter2' | python3 -m ops_summary.redact   # try the redactor
+python3 -m lookout --dry-run            # collect + detect, print flags as JSON
+python3 -m lookout --dry-run --stage collect   # just the collected facts
+python3 -m lookout --fixture tests/fixtures/scenarios/flapping.json   # replay a scenario
+echo 'password=hunter2' | python3 -m lookout.redact   # try the redactor
 ```
 
 No third-party runtime dependencies (stdlib only). Tests need pytest:
@@ -202,6 +204,8 @@ python3 -m venv .venv && .venv/bin/pip install pytest
 The Discord webhook and Kuma push URLs live in `.env` (gitignored, `chmod 600`, created by hand from `.env.example`). systemd loads it with `EnvironmentFile=`, and the code only reads environment variables. Not used until phase 5.
 
 ## Roadmap
+
+Longer-term plans (v2, v3) and the core principle behind them: [`ROADMAP.md`](ROADMAP.md).
 
 | # | Phase | Status |
 |---|---|---|

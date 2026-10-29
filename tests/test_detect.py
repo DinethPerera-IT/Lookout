@@ -1,5 +1,5 @@
-from ops_summary import detect
-from ops_summary.detect import Baseline, Flag
+from lookout import detect
+from lookout.detect import Baseline, Flag
 
 
 def baseline(hours=168, counts=None, templates=()):

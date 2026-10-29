@@ -1,7 +1,7 @@
-from ops_summary import pipeline
-from ops_summary.collectors import journal
-from ops_summary.state import HOUR, State
-from ops_summary.templates import normalize_source, template_of
+from lookout import pipeline
+from lookout.collectors import journal
+from lookout.state import HOUR, State
+from lookout.templates import normalize_source, template_of
 
 
 def test_variants_share_a_template():

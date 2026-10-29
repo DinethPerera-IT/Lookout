@@ -1,4 +1,4 @@
-from ops_summary.collectors import host, systemd
+from lookout.collectors import host, systemd
 
 MEMINFO = """MemTotal:       16000000 kB
 MemFree:         3000000 kB

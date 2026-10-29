@@ -7,7 +7,7 @@ import subprocess
 import sys
 from collections import Counter
 
-from ops_summary.redact import find_leaks, redact_counts
+from lookout.redact import find_leaks, redact_counts
 
 
 def read(cmd):

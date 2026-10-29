@@ -1,7 +1,7 @@
 import pytest
 
-from ops_summary.collectors import journal
-from ops_summary.redact import find_leaks, redact, redact_counts
+from lookout.collectors import journal
+from lookout.redact import find_leaks, redact, redact_counts
 
 # Fake secrets are assembled at runtime so no realistic-looking token appears
 # literally in the repo (GitHub secret scanning would flag or block the push).

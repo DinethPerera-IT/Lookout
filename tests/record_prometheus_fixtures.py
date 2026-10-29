@@ -5,8 +5,8 @@ Run: .venv/bin/python -m tests.record_prometheus_fixtures
 import urllib.parse
 from pathlib import Path
 
-from ops_summary import config
-from ops_summary.collectors import prometheus
+from lookout import config
+from lookout.collectors import prometheus
 
 OUT = Path(__file__).parent / "fixtures" / "prometheus"
 

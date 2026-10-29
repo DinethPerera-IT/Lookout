@@ -1,4 +1,4 @@
-from ops_summary.__main__ import collect_all
+from lookout.__main__ import collect_all
 
 
 def test_one_broken_collector_does_not_stop_the_others(cfg):

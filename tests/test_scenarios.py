@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from ops_summary.pipeline import run_scenario
+from lookout.pipeline import run_scenario
 
 SCENARIOS = sorted((Path(__file__).parent / "fixtures" / "scenarios").glob("*.json"))
 

@@ -1,4 +1,4 @@
-"""Deterministic rules: the only part of ops-summary that decides what is unusual.
+"""Deterministic rules: the only part of Lookout that decides what is unusual.
 
 Each rule takes the collected facts (plus the error baseline) and returns Flags.
 A Flag's summary is written by code from numbers and system metadata (unit

@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from ops_summary.collectors import journal
+from lookout.collectors import journal
 
 SAMPLE = (Path(__file__).parent / "fixtures" / "journal" / "sample.jsonl").read_text()
 

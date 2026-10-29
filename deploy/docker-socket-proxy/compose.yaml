@@ -1,4 +1,4 @@
-# Read-only Docker API for ops-summary, on 127.0.0.1:2375 only.
+# Read-only Docker API for Lookout, on 127.0.0.1:2375 only.
 # Validate: docker compose config    Start (after review): docker compose up -d
 services:
   docker-socket-proxy:

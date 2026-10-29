@@ -1,4 +1,4 @@
-"""Verify the read-only Docker proxy allows exactly what ops-summary needs.
+"""Verify the read-only Docker proxy allows exactly what Lookout needs.
 
 Run: .venv/bin/python -m tests.check_proxy
 "Must be blocked" checks target a container that doesn't exist, so even a
@@ -10,9 +10,9 @@ import sys
 import urllib.error
 import urllib.request
 
-from ops_summary import config
+from lookout import config
 
-FAKE = "ops-summary-check-does-not-exist"
+FAKE = "lookout-check-does-not-exist"
 
 
 def status(base, method, path):

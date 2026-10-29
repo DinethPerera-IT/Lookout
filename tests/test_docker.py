@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from ops_summary.collectors import CollectorError, docker
+from lookout.collectors import CollectorError, docker
 
 FIXTURE = (Path(__file__).parent / "fixtures" / "docker" / "containers.json").read_bytes()
 IDS = {c["Names"][0].lstrip("/"): c["Id"][:12] for c in json.loads(FIXTURE)}

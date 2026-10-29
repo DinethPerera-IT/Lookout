@@ -1,6 +1,6 @@
 import pytest
 
-from ops_summary import config
+from lookout import config
 
 
 @pytest.fixture

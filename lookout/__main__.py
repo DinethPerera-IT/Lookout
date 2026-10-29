@@ -1,4 +1,4 @@
-"""Command-line entry point: python -m ops_summary --dry-run"""
+"""Command-line entry point: python -m lookout --dry-run"""
 import argparse
 import json
 import os
@@ -78,7 +78,7 @@ def detect(args, cfg):
 
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(prog="ops_summary", description=__doc__)
+    parser = argparse.ArgumentParser(prog="lookout", description=__doc__)
     parser.add_argument("--dry-run", action="store_true",
                         help="print results instead of sending; never changes stored state")
     parser.add_argument("--stage", choices=["collect", "detect"], default="detect",

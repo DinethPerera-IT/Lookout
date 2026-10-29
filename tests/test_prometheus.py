@@ -4,8 +4,8 @@ from pathlib import Path
 
 import pytest
 
-from ops_summary.__main__ import collect_all
-from ops_summary.collectors import CollectorError, prometheus
+from lookout.__main__ import collect_all
+from lookout.collectors import CollectorError, prometheus
 
 FIXTURES = Path(__file__).parent / "fixtures" / "prometheus"
 

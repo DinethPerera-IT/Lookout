@@ -1,5 +1,5 @@
-from ops_summary.detect import Flag
-from ops_summary.state import HOUR, State, decide
+from lookout.detect import Flag
+from lookout.state import HOUR, State, decide
 
 COOLDOWN = {"reminder_hours": 24, "event_cooldown_hours": 6, "flap_window_hours": 6}
 
