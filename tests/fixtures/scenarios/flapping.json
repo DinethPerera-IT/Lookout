@@ -1,0 +1,15 @@
+{
+  "description": "Load hovers around the threshold. Every failure after a resolved notice is reported; repeat resolved notices are held back (at most one per 6 h flap window) and the held-back one is sent once 6 h have passed since the last.",
+  "runs": [
+    {"minutes": 0, "facts": {"host": {"ok": true, "load": {"load15": 6.5}}}, "expect": {"report": {"load": "new"}}},
+    {"minutes": 60, "facts": {"host": {"ok": true, "load": {"load15": 5.0}}}, "expect": {"resolved": ["load"]}},
+    {"minutes": 120, "facts": {"host": {"ok": true, "load": {"load15": 6.5}}}, "expect": {"report": {"load": "reappeared"}}},
+    {"minutes": 180, "facts": {"host": {"ok": true, "load": {"load15": 5.0}}}, "expect": {}},
+    {"minutes": 240, "facts": {"host": {"ok": true, "load": {"load15": 6.5}}}, "expect": {"suppressed": ["load"]}},
+    {"minutes": 270, "facts": {"host": {"ok": true, "load": {"load15": 8.5}}}, "expect": {"report": {"load": "worse"}}},
+    {"minutes": 300, "facts": {"host": {"ok": true, "load": {"load15": 5.0}}}, "expect": {}},
+    {"minutes": 360, "facts": {"host": {"ok": true, "load": {"load15": 5.0}}}, "expect": {}},
+    {"minutes": 420, "facts": {"host": {"ok": true, "load": {"load15": 5.0}}}, "expect": {"resolved": ["load"]}},
+    {"minutes": 480, "facts": {"host": {"ok": true, "load": {"load15": 6.5}}}, "expect": {"report": {"load": "reappeared"}}}
+  ]
+}

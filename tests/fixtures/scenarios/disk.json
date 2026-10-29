@@ -1,0 +1,17 @@
+{
+  "description": "Disk fills up: reported once, suppressed while unchanged, re-reported when it gets worse, a daily reminder, then resolved.",
+  "runs": [
+    {"minutes": 0, "facts": {"host": {"ok": true, "disks": [{"mountpoint": "/", "used_pct": 88.0}]}},
+     "expect": {"report": {"disk:/": "new"}}},
+    {"minutes": 60, "facts": {"host": {"ok": true, "disks": [{"mountpoint": "/", "used_pct": 89.0}]}},
+     "expect": {"suppressed": ["disk:/"]}},
+    {"minutes": 120, "facts": {"host": {"ok": true, "disks": [{"mountpoint": "/", "used_pct": 96.0}]}},
+     "expect": {"report": {"disk:/": "worse"}}},
+    {"minutes": 180, "facts": {"host": {"ok": true, "disks": [{"mountpoint": "/", "used_pct": 96.5}]}},
+     "expect": {"suppressed": ["disk:/"]}},
+    {"minutes": 1600, "facts": {"host": {"ok": true, "disks": [{"mountpoint": "/", "used_pct": 96.5}]}},
+     "expect": {"report": {"disk:/": "reminder"}}},
+    {"minutes": 1660, "facts": {"host": {"ok": true, "disks": [{"mountpoint": "/", "used_pct": 70.0}]}},
+     "expect": {"resolved": ["disk:/"]}}
+  ]
+}

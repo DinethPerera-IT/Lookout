@@ -1,0 +1,19 @@
+{
+  "description": "A normal hour on this server: nothing should be flagged.",
+  "baseline": {"hours": 168, "error_counts": {"user@1000.service": [1]},
+               "templates": [["user@1000.service", "Failed to start app-gnome-<n>.scope"]]},
+  "runs": [
+    {"minutes": 0,
+     "facts": {
+       "host": {"ok": true, "disks": [{"mountpoint": "/", "used_pct": 32.0}],
+                "memory": {"available_pct": 75.0, "swap_used_bytes": 0}, "load": {"load15": 2.0}},
+       "systemd": {"ok": true, "failed_units": []},
+       "journal": {"ok": true,
+                   "by_source": {"user@1000.service": {"total": 11, "errors": 1, "noise": 0},
+                                 "apt-daily.service": {"total": 3, "errors": 0, "noise": 1}},
+                   "error_templates": {"user@1000.service": {"Failed to start app-gnome-<n>.scope":
+                                       {"count": 1, "examples": ["Failed to start app-gnome-1.scope"]}}},
+                   "wifi_reauths": {"window_hours": 24, "count": 1}}},
+     "expect": {}}
+  ]
+}

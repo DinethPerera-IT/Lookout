@@ -14,13 +14,14 @@ from . import CollectorError
 
 def build_queries(cfg):
     window = f"{cfg['window_minutes']}m"
+    days = cfg["thresholds"]["disk_full_within_days"]
     sel = '{fstype!~"%s"}' % "|".join(cfg["prometheus"]["exclude_fstypes"])
     size, free, avail = (f"node_filesystem_{m}_bytes{sel}" for m in ("size", "free", "avail"))
     return {
         "targets": "up",
         # Same formula as df's Use%
         "disk_used_pct": f"100 * ({size} - {free}) / ({size} - {free} + {avail})",
-        "disk_avail_in_7d_bytes": f"predict_linear({avail}[6h], 7 * 86400)",
+        "disk_avail_predicted_bytes": f"predict_linear({avail}[6h], {days} * 86400)",
         "mem_min_available_pct": f"100 * min_over_time(node_memory_MemAvailable_bytes[{window}])"
                                  " / node_memory_MemTotal_bytes",
         "swap_max_used_bytes": "max_over_time((node_memory_SwapTotal_bytes"
@@ -70,7 +71,7 @@ def collect(cfg, fetch=http_get):
         "targets": [{"job": labels.get("job"), "instance": labels.get("instance"), "up": value == 1}
                     for labels, value in q("targets")],
         "disk_used_pct": by_mountpoint(q("disk_used_pct")),
-        "disk_avail_in_7d_bytes": by_mountpoint(q("disk_avail_in_7d_bytes")),
+        "disk_avail_predicted_bytes": by_mountpoint(q("disk_avail_predicted_bytes")),
         "mem_min_available_pct": first_value(q("mem_min_available_pct")),
         "swap_max_used_bytes": first_value(q("swap_max_used_bytes")),
         "load15_max": first_value(q("load15_max")),

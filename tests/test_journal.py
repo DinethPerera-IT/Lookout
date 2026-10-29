@@ -13,11 +13,20 @@ def test_summarise_counts_errors_per_source():
     summary = journal.summarise(journal.parse(SAMPLE))
     assert summary["total"] == 6
     assert summary["by_source"] == {
-        "CRON": {"total": 1, "errors": 0},
-        "cloudflared.service": {"total": 2, "errors": 1},
-        "kernel": {"total": 2, "errors": 1},
-        "unknown": {"total": 1, "errors": 0},  # priority 4 (warning) is not an error
+        "CRON": {"total": 1, "errors": 0, "noise": 0},
+        "cloudflared.service": {"total": 2, "errors": 1, "noise": 0},
+        "kernel": {"total": 2, "errors": 1, "noise": 0},
+        "unknown": {"total": 1, "errors": 0, "noise": 0},  # priority 4 (warning) is not an error
     }
+    assert summary["error_templates"]["cloudflared.service"] == {
+        "failed to connect to edge": {"count": 1, "examples": ["failed to connect to edge"]}}
+
+
+def test_known_noise_is_counted_separately(cfg):
+    line = '{"_SYSTEMD_UNIT":"apt-daily.service","PRIORITY":"3","MESSAGE":"Timeout occurred while waiting for network connectivity."}'
+    summary = journal.summarise(journal.parse(line), journal.noise_patterns(cfg))
+    assert summary["by_source"]["apt-daily.service"] == {"total": 1, "errors": 0, "noise": 1}
+    assert summary["error_templates"] == {}
 
 
 def test_byte_array_message_is_decoded():
@@ -29,6 +38,7 @@ def test_wifi_reauth_count():
     assert journal.count_matching(journal.parse(SAMPLE), "send eapol packet 4/4") == 1
 
 
-def test_summary_contains_no_message_text():
-    # Until redaction exists (phase 2), log text must never leave the collector.
-    assert "failed to connect" not in str(journal.summarise(journal.parse(SAMPLE)))
+def test_examples_are_redacted():
+    line = '{"_SYSTEMD_UNIT":"app.service","PRIORITY":"3","MESSAGE":"login failed password=hunter2"}'
+    summary = journal.summarise(journal.parse(line))
+    assert "hunter2" not in str(summary)

@@ -1,0 +1,22 @@
+{
+  "description": "A unit fails, recovers (resolved notice sent), fails again an hour later and stays failed. The re-failure must be reported, not hidden behind the flap window or the 24 h reminder.",
+  "runs": [
+    {"minutes": 0, "facts": {"systemd": {"ok": true, "failed_units": [
+       {"unit": "caddy.service", "active": "failed", "sub": "failed", "description": "Caddy"}]}},
+     "expect": {"report": {"failed_unit:caddy.service": "new"}}},
+    {"minutes": 60, "facts": {"systemd": {"ok": true, "failed_units": []}},
+     "expect": {"resolved": ["failed_unit:caddy.service"]}},
+    {"minutes": 120, "facts": {"systemd": {"ok": true, "failed_units": [
+       {"unit": "caddy.service", "active": "failed", "sub": "failed", "description": "Caddy"}]}},
+     "expect": {"report": {"failed_unit:caddy.service": "reappeared"}}},
+    {"minutes": 180, "facts": {"systemd": {"ok": true, "failed_units": [
+       {"unit": "caddy.service", "active": "failed", "sub": "failed", "description": "Caddy"}]}},
+     "expect": {"suppressed": ["failed_unit:caddy.service"]}},
+    {"minutes": 600, "facts": {"systemd": {"ok": true, "failed_units": [
+       {"unit": "caddy.service", "active": "failed", "sub": "failed", "description": "Caddy"}]}},
+     "expect": {"suppressed": ["failed_unit:caddy.service"]}},
+    {"minutes": 1560, "facts": {"systemd": {"ok": true, "failed_units": [
+       {"unit": "caddy.service", "active": "failed", "sub": "failed", "description": "Caddy"}]}},
+     "expect": {"report": {"failed_unit:caddy.service": "reminder"}}}
+  ]
+}

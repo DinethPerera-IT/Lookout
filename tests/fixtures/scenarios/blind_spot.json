@@ -1,0 +1,10 @@
+{
+  "description": "Prometheus is down: that is reported as a blind spot, and memory is still checked from /proc.",
+  "runs": [
+    {"minutes": 0, "facts": {
+       "host": {"ok": true, "disks": [{"mountpoint": "/", "used_pct": 32.0}],
+                "memory": {"available_pct": 7.0, "swap_used_bytes": 0}, "load": {"load15": 2.0}},
+       "prometheus": {"ok": false, "error": "CollectorError: Prometheus unreachable: <urlopen error [Errno 111] Connection refused>"}},
+     "expect": {"report": {"blindspot:prometheus": "new", "memory": "new"}}}
+  ]
+}

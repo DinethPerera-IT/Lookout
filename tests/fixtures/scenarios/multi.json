@@ -1,0 +1,15 @@
+{
+  "description": "Several problems at once: a failed unit, a down Prometheus target, high load and unstable WiFi.",
+  "runs": [
+    {"minutes": 0, "facts": {
+       "prometheus": {"ok": true, "targets": [{"job": "node-exporter", "instance": "localhost:9100", "up": false}],
+                      "disk_used_pct": {}, "disk_avail_predicted_bytes": {}, "mem_min_available_pct": 60.0,
+                      "swap_max_used_bytes": 0, "load15_max": 8.5},
+       "systemd": {"ok": true, "failed_units": [{"unit": "caddy.service", "active": "failed", "sub": "failed",
+                                                  "description": "Caddy"}]},
+       "journal": {"ok": true, "by_source": {}, "error_templates": {},
+                   "wifi_reauths": {"window_hours": 24, "count": 5}}},
+     "expect": {"report": {"failed_unit:caddy.service": "new", "load": "new",
+                           "target_down:node-exporter:localhost:9100": "new", "wifi": "new"}}}
+  ]
+}

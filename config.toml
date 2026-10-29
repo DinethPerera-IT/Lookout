@@ -20,3 +20,44 @@ timeout_seconds = 60
 # Kernel message logged on every WiFi (re)authentication by the RTL8812BU driver
 reauth_pattern = "send eapol packet 4/4"
 window_hours = 24
+
+# Journal entries matching these regexes are counted as known noise instead of
+# errors: they never trigger spike or novel-error flags. Keep this list short and
+# explain each entry.
+[[journal.known_noise]]
+pattern = "Timeout occurred while waiting for network connectivity"
+reason = "apt-daily runs before WiFi is fully up; harmless and recurring"
+
+[state]
+# Overridden by $STATE_DIRECTORY (set by systemd) or --state
+default_path = "~/.local/state/ops-summary/state.sqlite"
+sample_retention_days = 30
+template_retention_days = 90
+
+# Thresholds were chosen from 14 days of history (2026-10-29):
+# load15 median 1.95 / max 4.37, memory available never below 74%, swap never used,
+# journal errors at most 1 per hour per unit.
+[thresholds]
+disk_warn_pct = 85
+disk_crit_pct = 95
+disk_full_within_days = 7      # predict_linear says the disk fills within this many days -> warn
+mem_avail_warn_pct = 10
+mem_avail_crit_pct = 5
+swap_warn_bytes = 1073741824   # 1 GiB
+load15_warn = 6
+load15_crit = 8
+wifi_reauths_warn = 4          # per wifi.window_hours; normal is 0-2 per day
+wifi_reauths_crit = 10
+
+[baseline]
+history_hours = 168            # 7 days of hourly error counts per source
+spike_floor = 5                # never flag fewer errors than this in one window
+spike_mad_k = 4                # threshold = max(floor, median + k * MAD)
+warmup_floor = 20              # fixed threshold while history is shorter than history_hours
+spike_crit_multiplier = 5      # crit when count >= threshold * this
+novel_max_flags = 5            # more novel templates than this are grouped into one flag
+
+[cooldown]
+reminder_hours = 24            # re-report a still-active issue at most this often
+event_cooldown_hours = 6       # spikes/novel errors: suppress repeats for this long
+flap_window_hours = 6          # at most one "resolved" notice per issue per this many hours

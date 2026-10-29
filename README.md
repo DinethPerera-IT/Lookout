@@ -2,7 +2,7 @@
 
 An hourly, read-only job for my homelab. It collects logs and metrics, uses **deterministic rules** to decide whether anything is unusual, and posts the flagged facts to Discord. A **local** LLM (Ollama) adds a plain-English explanation on top. When nothing is unusual it stays silent.
 
-> Status: **Phase 2 of 8 (redaction) complete.** Nothing is sent anywhere yet.
+> Status: **Phase 3 of 8 (detection + state) complete.** Nothing is sent anywhere yet.
 
 ## What is it?
 
@@ -70,10 +70,69 @@ Trying to associate with aa:bb:… (SSID='…') → Trying to associate with <ma
 | 24 h | ~2,800 | 0 | 0 |
 | 14 days | ~55,000 | 1 | 0 |
 
+### Phase 3: detection and state
+
+**What is it?** The part that decides. `ops_summary/detect.py` holds plain, deterministic rules. Each one reads the collected facts and returns *flags*. `ops_summary/state.py` keeps a small SQLite database, so the job remembers what's normal and what it has already told me.
+
+**The rules** (thresholds in `config.toml`, chosen from 14 days of this server's history):
+
+| Rule | Flags when | Normal here |
+|---|---|---|
+| Disk | ≥ 85% (warn), ≥ 95% (crit); or the 6 h trend says it fills within 7 days | 32% |
+| Memory | lowest available in the hour < 10% (warn) / < 5% (crit); swap > 1 GiB | ~75% available, no swap |
+| Load | highest 15-min load in the hour ≥ 6 (warn) / ≥ 8 (crit) on 4 cores | median 1.95, max 4.37 |
+| Failed units | any `systemctl --failed` unit (crit) | none |
+| WiFi | ≥ 4 re-authentications in 24 h | 0–2 a day |
+| Error spike | a unit logs more errors this hour than `max(5, median + 4 × MAD)` of its last 7 days | ≤ 1 error/hour per unit |
+| Novel error | an error *template* never seen before | — |
+| Blind spot | a collector failed, or a Prometheus target is down | — |
+
+(Docker container rules arrive in phase 4.)
+
+**How does it work?**
+
+1. **Templates.** `templates.py` turns `Failed to connect to 10.0.0.5 after 3021ms` into `Failed to connect to <ip> after <n>ms`, so 50 variants of one message count as one. Units that change name every session (`session-648.scope`) are collapsed too.
+2. **Baseline: median + MAD.** For each unit, the job stores errors per hour. The spike threshold is the median plus 4 × MAD (median absolute deviation: the typical distance from the median). Both are *medians*, so one freak burst last Tuesday doesn't make the threshold useless the way a mean and standard deviation would. A floor of 5 stops "1 error instead of 0" from being called a spike.
+3. **First run (warm-up).** A brand-new database has no history. Instead of guessing, the first run **seeds** the baseline from the last 7 days of journal errors and learns every existing error template silently, so run 1 doesn't call everything "novel". If less than 7 days of history exists, spike detection uses a conservative fixed threshold (20) and says so in the flag: `baseline warming up: 11/168 h`. Absolute rules (disk, memory, failed units…) work from run 1.
+4. **Known noise.** A short, commented list in `config.toml` (currently one entry: apt-daily's network timeout at boot) is counted separately and never triggers spikes or novel errors. On this server, 20 of the 21 errors in the last 7 days were that one line.
+5. **No repeated alerts (dedup + cooldown).** Every flag has a stable key (`disk:/`, `error_spike:cloudflared.service`). `decide()` compares this run's flags with what's stored and puts each one in a bucket:
+
+   | Situation | Outcome |
+   |---|---|
+   | Never seen before | **report** (new) |
+   | Comes back after a "resolved" notice was sent | **report** (reappeared), always, even minutes later |
+   | Severity went up (warn → crit) | **report** (worse), always, even while flapping |
+   | Still active, last reported ≥ 24 h ago | **report** (reminder) |
+   | Still active, reported recently | suppressed |
+   | Clears | **"resolved" notice**, unless one was already sent for it in the last 6 h. Then it's held back, and sent once 6 h have passed since the previous one if the issue is still clear. |
+   | Comes back while its "resolved" notice is held back | suppressed (from the reader's side it never stopped being broken) |
+
+   **Invariant:** the last message about an issue never says "resolved" while it is broken. Flap protection only ever holds back *resolved* notices (at most one per 6 h), never a failure. A test replays every scenario and checks this after every run.
+
+   Spikes and novel errors are *events*: they don't "resolve", they just expire after a 6 h cooldown.
+6. **Dry runs change nothing.** SQLite runs with autocommit off. A real run commits at the end. A dry run closes without committing, so every change is rolled back, and if no database exists yet it uses an in-memory one. A dry run can therefore never swallow an alert that a later real run should send.
+
+**Trust boundary.** A flag's `summary` is written by code from numbers and system metadata only (`cloudflared.service: 30 errors in the last 60 min (normal: median 0/h, threshold 5)`). Log text, which can contain anything an internet visitor typed, only ever goes in `evidence`. A test feeds in `IGNORE PREVIOUS INSTRUCTIONS … @everyone` and checks it never reaches a summary.
+
+**Proving the rules: scenario fixtures.** `tests/fixtures/scenarios/*.json` are small stories, run by run, with the expected outcome of each run: a disk filling up, an error burst, a novel error, warm-up, Prometheus down, several failures at once, flapping load, a unit that fails again after recovering, and a quiet hour. pytest checks every expectation. The CLI replays any of them in memory without touching the server:
+
+```
+$ python3 -m ops_summary --fixture tests/fixtures/scenarios/disk.json
+  +   0 min  disk:/  new       warn
+  +  60 min  disk:/  suppressed
+  + 120 min  disk:/  worse     crit
+  +1600 min  disk:/  reminder  crit
+  +1660 min  disk:/  resolved
+```
+
+On the live server, a dry run seeds a full 168 h baseline and reports **0 flags** in about 0.3 s.
+
 ## Usage
 
 ```bash
-python3 -m ops_summary --dry-run            # collect and print facts as JSON
+python3 -m ops_summary --dry-run            # collect + detect, print flags as JSON
+python3 -m ops_summary --dry-run --stage collect   # just the collected facts
+python3 -m ops_summary --fixture tests/fixtures/scenarios/flapping.json   # replay a scenario
 echo 'password=hunter2' | python3 -m ops_summary.redact   # try the redactor
 ```
 
@@ -98,7 +157,7 @@ The Discord webhook and Kuma push URLs live in `.env` (gitignored, `chmod 600`, 
 |---|---|---|
 | 1 | Skeleton + collectors (journal, systemd, host, Prometheus) | ✅ |
 | 2 | Redaction of secrets/MACs/SSIDs | ✅ |
-| 3 | Detection rules + SQLite state (baselines, cooldown, resolved) | |
+| 3 | Detection rules + SQLite state (baselines, cooldown, resolved) | ✅ |
 | 4 | Docker via read-only socket proxy | |
 | 5 | Discord report + Kuma heartbeat | |
 | 6 | Model benchmark (speed + "did it invent facts?") | |

@@ -30,7 +30,7 @@ def test_collect_parses_recorded_responses(cfg):
     assert facts["ok"] is True
     assert facts["targets"] == [{"job": "node-exporter", "instance": "localhost:9100", "up": True}]
     assert facts["disk_used_pct"] == {"/": pytest.approx(31.806, abs=0.001)}
-    assert facts["disk_avail_in_7d_bytes"] == {"/": pytest.approx(1.682e11, rel=1e-3)}
+    assert facts["disk_avail_predicted_bytes"] == {"/": pytest.approx(1.682e11, rel=1e-3)}
     assert facts["mem_min_available_pct"] == pytest.approx(75.213, abs=0.001)
     assert facts["swap_max_used_bytes"] == 0.0
     assert facts["load15_max"] == 4.12

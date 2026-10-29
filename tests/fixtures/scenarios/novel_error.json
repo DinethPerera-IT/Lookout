@@ -1,0 +1,16 @@
+{
+  "description": "A new kind of error appears (below the spike threshold). It is flagged once, then becomes part of the baseline.",
+  "baseline": {"hours": 168, "templates": [["caddy.service", "dial tcp <ip>: connect: connection refused"]]},
+  "runs": [
+    {"minutes": 0, "facts": {"journal": {"ok": true,
+       "by_source": {"caddy.service": {"total": 5, "errors": 2, "noise": 0}},
+       "error_templates": {"caddy.service": {"tls: failed to verify certificate: x<n> certificate has expired":
+         {"count": 2, "examples": ["tls: failed to verify certificate: x509 certificate has expired"]}}}}},
+     "expect": {"report": {"novel_error:caddy.service:dd72083a9c": "new"}}},
+    {"minutes": 60, "facts": {"journal": {"ok": true,
+       "by_source": {"caddy.service": {"total": 5, "errors": 2, "noise": 0}},
+       "error_templates": {"caddy.service": {"tls: failed to verify certificate: x<n> certificate has expired":
+         {"count": 2, "examples": ["tls: failed to verify certificate: x509 certificate has expired"]}}}}},
+     "expect": {}}
+  ]
+}
