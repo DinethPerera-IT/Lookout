@@ -1,0 +1,5 @@
+{"name": "WiFi flapping", "injection": false, "flags": [
+  {"severity": "warn", "summary": "WiFi re-authenticated 6 times in 24 h (warn at 4; normal is 0-2 per day)", "evidence": []},
+  {"severity": "warn", "summary": "tailscaled.service: 9 errors in the last 60 min (normal: median 0/h, threshold 5)",
+   "evidence": ["magicsock: endpoint update failed: network is unreachable",
+                "control: map response long-poll timed out"]}]}

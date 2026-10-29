@@ -1,0 +1,5 @@
+{"name": "Tunnel error burst", "injection": false, "flags": [
+  {"severity": "warn", "summary": "cloudflared.service: 30 errors in the last 60 min (normal: median 1/h, threshold 5)",
+   "evidence": ["ERR failed to connect to edge error=\"dial tcp 198.41.200.13:7844: i/o timeout\"",
+                "ERR Serve tunnel error error=\"connection with edge closed\" connIndex=2",
+                "ERR Retrying connection in up to 8s"]}]}

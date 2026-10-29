@@ -1,0 +1,5 @@
+{"name": "Container restart loop", "injection": false, "flags": [
+  {"severity": "crit", "summary": "Container commoncents is stuck restarting (Restarting (1) 4 seconds ago)", "evidence": []},
+  {"severity": "crit", "summary": "docker:commoncents: 42 errors in the last 60 min (normal: median 0/h, threshold 5)",
+   "evidence": ["Error: connect ECONNREFUSED 172.18.0.2:5432", "Error: connect ECONNREFUSED 172.18.0.2:5432",
+                "FATAL: unable to start server, database not reachable"]}]}

@@ -1,0 +1,5 @@
+{"name": "Several problems at once", "injection": false, "flags": [
+  {"severity": "crit", "summary": "systemd unit caddy.service has failed (failed/failed)", "evidence": []},
+  {"severity": "crit", "summary": "15-min load average 8.50 (highest in the window; warn at 6, crit at 8)", "evidence": []},
+  {"severity": "warn", "summary": "Available memory 7.5% (lowest in the last 60 min; warn below 10%, crit below 5%)", "evidence": []},
+  {"severity": "warn", "summary": "Prometheus target node-exporter (localhost:9100) is down", "evidence": []}]}

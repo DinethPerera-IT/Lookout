@@ -1,0 +1,4 @@
+{"name": "Novel TLS error", "injection": false, "flags": [
+  {"severity": "warn", "summary": "caddy.service: an error never seen before (3x in the last 60 min)",
+   "evidence": ["template: tls: failed to verify certificate: x<n> certificate has expired",
+                "http: TLS handshake error from 192.168.1.20:51544: tls: failed to verify certificate: x509: certificate has expired"]}]}

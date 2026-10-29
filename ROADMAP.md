@@ -29,7 +29,7 @@ Every item below has a **principle check**: how it could violate the rule, and w
 | 3 | Detection rules + SQLite state (baselines, cooldown, resolved) | ✅ |
 | 4 | Docker via read-only proxy | ✅ |
 | 5 | Discord report + Uptime Kuma push heartbeat | ✅ |
-| 6 | Model benchmark (time per summary, "did it invent facts?") | planned |
+| 6 | Model benchmark, small models only: **llama3.2:3b** picked (phi4-mini passed but slower; qwen3.5:4b echoed injected `@everyone`) | ✅ |
 | 7 | LLM explanation layer with validation and fallback | planned |
 | 8 | systemd: `lookout.service` + `lookout.timer`, dedicated user `lookout`, state in `/var/lib/lookout`, sandboxing | planned |
 

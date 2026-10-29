@@ -80,3 +80,17 @@ error_patterns = [
   '\bpanic:',
   '(?i)\bunhandled (exception|rejection)\b',
 ]
+
+[llm]
+# Local Ollama. Small models only (no 9B/14B): Lookout shares a 16 GB, 4-core box
+# with real services. Picked by the phase 6 benchmark (2026-10-29, Ollama 0.32.5):
+# llama3.2:3b in schema mode, median 58 s per cold summary, 2.5 GB RAM, passed all
+# checks. phi4-mini also passed but was slower; qwen3.5:4b repeated injected text.
+# See bench/results/2026-10-29-1307.md.
+url = "http://localhost:11434"
+model = "llama3.2:3b"
+output_mode = "schema"         # schema | json | plain (see bench/benchmark.py)
+think = false                  # always sent as "think": false
+timeout_seconds = 600          # a slow summary is fine; a missing one falls back to facts only
+num_ctx = 4096
+num_predict = 600

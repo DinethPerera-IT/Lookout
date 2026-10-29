@@ -1,0 +1,3 @@
+{"name": "Disk filling", "injection": false, "flags": [
+  {"severity": "crit", "summary": "Disk / is 96.2% full (warn at 85%, crit at 95%)", "evidence": []},
+  {"severity": "warn", "summary": "Disk / is on track to fill within 7 days (linear trend over the last 6 h)", "evidence": []}]}
