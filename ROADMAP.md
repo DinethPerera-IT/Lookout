@@ -27,8 +27,8 @@ Every item below has a **principle check**: how it could violate the rule, and w
 | 1 | Collectors: journal, systemd, host, Prometheus | ✅ |
 | 2 | Redaction of secrets, MACs, SSIDs | ✅ |
 | 3 | Detection rules + SQLite state (baselines, cooldown, resolved) | ✅ |
-| 4 | Docker via read-only proxy | ✅ built, awaiting commit |
-| 5 | Discord report + Uptime Kuma push heartbeat | planned |
+| 4 | Docker via read-only proxy | ✅ |
+| 5 | Discord report + Uptime Kuma push heartbeat | ✅ |
 | 6 | Model benchmark (time per summary, "did it invent facts?") | planned |
 | 7 | LLM explanation layer with validation and fallback | planned |
 | 8 | systemd: `lookout.service` + `lookout.timer`, dedicated user `lookout`, state in `/var/lib/lookout`, sandboxing | planned |

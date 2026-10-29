@@ -4,7 +4,7 @@
 
 An hourly, read-only job for my homelab. It collects logs and metrics, uses **deterministic rules** to decide whether anything is unusual, and posts the flagged facts to Discord. A **local** LLM (Ollama) adds a plain-English explanation on top. When nothing is unusual it stays silent.
 
-> Status: **Phase 4 of 8 (Docker via read-only proxy) complete.** Nothing is sent anywhere yet.
+> Status: **Phase 5 of 8 (Discord report + Kuma heartbeat) complete.** Not scheduled yet: it only runs when started by hand.
 
 ## What is it?
 
@@ -178,10 +178,49 @@ Containers never seen running (this server has 14 leftover `docker run` containe
 
 **Live result:** the proxy passes 17/17 checks, the job sees all 27 containers (6 fields each, no env vars), and a dry run reports 0 flags. A normal run takes about 6 s. Most of that is one container: Docker's json-file driver scans a container's *whole* log file to filter by time, and uptime-kuma's has grown to 141 MB because Docker log rotation wasn't configured on that host.
 
+### Phase 5: Discord report and Kuma heartbeat
+
+**What is it?** When the rules flag something new, worse, back again or due for a reminder, Lookout posts one message to a Discord channel through a webhook. At the end of every successful run it pings an Uptime Kuma **push monitor**, so Kuma alerts me if Lookout stops running.
+
+What a report looks like (from `tests/fixtures/scenarios/discord_test.json`):
+
+```
+🔴 Lookout: 1 critical, 1 warning
+🔴 new · systemd unit caddy.service has failed (failed/failed)
+🟡 new · caddy.service: an error never seen before (2x in the last 60 min)
+    ┌──────────────────────────────────────────────────────────────┐
+    │ http.log.error 502 GET /login?next=@​everyone … ⏎ **IGNORE…   │  ← quoted log text, inert
+    └──────────────────────────────────────────────────────────────┘
+Still active, already reported: error_spike:cloudflared.service
+✅ Resolved (1)
+✅ Disk / is 88.0% full (warn at 85%, crit at 95%)
+```
+
+**How does it work?**
+
+1. **`report.py` builds the message from code only.** Each line comes from a flag's code-generated summary. The report is silent when there's nothing new.
+2. **Log text is defused.** Evidence lines are untrusted (they can contain anything a visitor typed into a URL):
+   - They're quoted inside a code block, where Discord renders nothing: no links, no formatting.
+   - Backticks are swapped for a look-alike, so a line can't close the block early.
+   - Newlines are flattened, so one entry stays one line.
+   - `@` gets a zero-width space after it.
+   - On top of all that, `allowed_mentions: {"parse": []}` tells Discord to ping no one, whatever the text says.
+   - A test sends `@everyone`, a role ping, a masked link and a fake prompt injection through all of this.
+3. **Send first, commit second.** State (what has been reported) is saved only after Discord confirms delivery (`?wait=true`). If the send fails, nothing is marked as reported and the next run tries again. A failed send can't silently swallow an alert.
+4. **Watch the watcher.**
+   - After every successful run (even a silent one), Lookout pushes `status=up` to Kuma, with the counts and the run time.
+   - If the Discord send fails, it pushes `status=down` right away, so Kuma alerts within minutes.
+   - If Lookout crashes, hangs, or the server is off, there's no push at all, and Kuma alerts when the heartbeat goes missing.
+5. **Limits and politeness.** Messages are kept within Discord's limits (4,096 characters per embed, 6,000 per message), summarising whatever doesn't fit. A rate limit (HTTP 429) is retried once. Requests carry a real User-Agent, because Discord rejects Python's default one.
+
+**Secrets.** The webhook and push URLs both contain tokens. They live only in `.env` (gitignored, `chmod 600`, created by hand). systemd loads that file with `EnvironmentFile=`; for manual runs there's `--env-file .env`. Lookout never prints them, and error messages say "HTTP 404", never the URL. Placeholder values (`CHANGE_ME`) count as missing, and a real run refuses to start without both.
+
 ## Usage
 
 ```bash
-python3 -m lookout --dry-run            # collect + detect, print flags as JSON
+python3 -m lookout --dry-run            # full run, but print the Discord payload instead of sending
+python3 -m lookout --env-file .env      # real run: send if needed, then heartbeat
+python3 -m lookout --env-file .env --fixture tests/fixtures/scenarios/discord_test.json --send   # test message
 python3 -m lookout --dry-run --stage collect   # just the collected facts
 python3 -m lookout --fixture tests/fixtures/scenarios/flapping.json   # replay a scenario
 echo 'password=hunter2' | python3 -m lookout.redact   # try the redactor
@@ -213,7 +252,7 @@ Longer-term plans (v2, v3) and the core principle behind them: [`ROADMAP.md`](RO
 | 2 | Redaction of secrets/MACs/SSIDs | ✅ |
 | 3 | Detection rules + SQLite state (baselines, cooldown, resolved) | ✅ |
 | 4 | Docker via read-only socket proxy | ✅ |
-| 5 | Discord report + Kuma heartbeat | |
+| 5 | Discord report + Kuma heartbeat | ✅ |
 | 6 | Model benchmark (speed + "did it invent facts?") | |
 | 7 | LLM explanation layer with validation and fallback | |
 | 8 | systemd timer, dedicated user, sandboxing | |
