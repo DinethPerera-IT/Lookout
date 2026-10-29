@@ -1,0 +1,1 @@
+{"status":"success","data":{"resultType":"vector","result":[{"metric":{"instance":"localhost:9100","job":"node-exporter"},"value":[1793270886.949,"75.21340133466926"]}]}}

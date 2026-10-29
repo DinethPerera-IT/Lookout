@@ -1,0 +1,22 @@
+# ops-summary configuration. No secrets here: those come from the environment (.env).
+
+# How far back each run looks. Matches the hourly timer.
+window_minutes = 60
+
+[prometheus]
+url = "http://localhost:9090"
+timeout_seconds = 10
+# Filesystems that are not real disks
+exclude_fstypes = ["tmpfs", "overlay", "squashfs", "efivarfs", "devtmpfs"]
+
+[host]
+# Mountpoints checked directly (fallback when Prometheus is down)
+mounts = ["/", "/boot/efi"]
+
+[journal]
+timeout_seconds = 60
+
+[wifi]
+# Kernel message logged on every WiFi (re)authentication by the RTL8812BU driver
+reauth_pattern = "send eapol packet 4/4"
+window_hours = 24

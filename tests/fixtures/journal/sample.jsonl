@@ -1,0 +1,7 @@
+{"_TRANSPORT":"journal","_SYSTEMD_UNIT":"cloudflared.service","PRIORITY":"3","MESSAGE":"failed to connect to edge"}
+{"_TRANSPORT":"journal","_SYSTEMD_UNIT":"cloudflared.service","PRIORITY":"6","MESSAGE":"Registered tunnel connection"}
+{"_TRANSPORT":"syslog","SYSLOG_IDENTIFIER":"CRON","PRIORITY":"6","MESSAGE":"session opened"}
+{"_TRANSPORT":"kernel","PRIORITY":"6","MESSAGE":"RTW: send eapol packet 4/4"}
+{"_TRANSPORT":"kernel","PRIORITY":"2","MESSAGE":[82,84,87,58,32,255,32,101,114,114]}
+not json at all
+{"_TRANSPORT":"journal","PRIORITY":"4","MESSAGE":"no unit or identifier"}

@@ -1,0 +1,8 @@
+# Secrets: created by hand, never committed
+.env
+
+# Local state and tooling
+*.sqlite
+__pycache__/
+.venv/
+.pytest_cache/
