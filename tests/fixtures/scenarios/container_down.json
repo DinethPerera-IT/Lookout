@@ -1,0 +1,28 @@
+{
+  "description": "commoncents stops, comes back, gets stuck restarting, then is removed. The long-exited leftover container is never flagged because it was never seen running.",
+  "runs": [
+    {"minutes": 0, "facts": {"docker": {"ok": true, "by_source": {}, "error_templates": {}, "containers": [
+       {"name": "commoncents", "id": "1b2c3d4e5f60", "image": "commoncents-app", "state": "running", "status": "Up 13 days", "health": "none"},
+       {"name": "clever_swirles", "id": "7f1e2d3c4b5a", "image": "busybox", "state": "exited", "status": "Exited (1) 3 months ago", "health": "none"}]}},
+     "expect": {}},
+    {"minutes": 60, "facts": {"docker": {"ok": true, "by_source": {}, "error_templates": {}, "containers": [
+       {"name": "commoncents", "id": "1b2c3d4e5f60", "image": "commoncents-app", "state": "exited", "status": "Exited (137) 10 minutes ago", "health": "none"},
+       {"name": "clever_swirles", "id": "7f1e2d3c4b5a", "image": "busybox", "state": "exited", "status": "Exited (1) 3 months ago", "health": "none"}]}},
+     "expect": {"report": {"container_down:commoncents": "new"}}},
+    {"minutes": 120, "facts": {"docker": {"ok": true, "by_source": {}, "error_templates": {}, "containers": [
+       {"name": "commoncents", "id": "1b2c3d4e5f60", "image": "commoncents-app", "state": "exited", "status": "Exited (137) About an hour ago", "health": "none"},
+       {"name": "clever_swirles", "id": "7f1e2d3c4b5a", "image": "busybox", "state": "exited", "status": "Exited (1) 3 months ago", "health": "none"}]}},
+     "expect": {"suppressed": ["container_down:commoncents"]}},
+    {"minutes": 180, "facts": {"docker": {"ok": true, "by_source": {}, "error_templates": {}, "containers": [
+       {"name": "commoncents", "id": "1b2c3d4e5f60", "image": "commoncents-app", "state": "running", "status": "Up 2 minutes", "health": "none"},
+       {"name": "clever_swirles", "id": "7f1e2d3c4b5a", "image": "busybox", "state": "exited", "status": "Exited (1) 3 months ago", "health": "none"}]}},
+     "expect": {"resolved": ["container_down:commoncents"]}},
+    {"minutes": 240, "facts": {"docker": {"ok": true, "by_source": {}, "error_templates": {}, "containers": [
+       {"name": "commoncents", "id": "1b2c3d4e5f60", "image": "commoncents-app", "state": "restarting", "status": "Restarting (1) 4 seconds ago", "health": "none"},
+       {"name": "clever_swirles", "id": "7f1e2d3c4b5a", "image": "busybox", "state": "exited", "status": "Exited (1) 3 months ago", "health": "none"}]}},
+     "expect": {"report": {"container_restarting:commoncents": "new"}}},
+    {"minutes": 300, "facts": {"docker": {"ok": true, "by_source": {}, "error_templates": {}, "containers": [
+       {"name": "clever_swirles", "id": "7f1e2d3c4b5a", "image": "busybox", "state": "exited", "status": "Exited (1) 3 months ago", "health": "none"}]}},
+     "expect": {"report": {"container_gone:commoncents": "new"}, "resolved": ["container_restarting:commoncents"]}}
+  ]
+}

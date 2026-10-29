@@ -61,3 +61,22 @@ novel_max_flags = 5            # more novel templates than this are grouped into
 reminder_hours = 24            # re-report a still-active issue at most this often
 event_cooldown_hours = 6       # spikes/novel errors: suppress repeats for this long
 flap_window_hours = 6          # at most one "resolved" notice per issue per this many hours
+
+[docker]
+# Read-only proxy from deploy/docker-socket-proxy (only list, logs and ping get through)
+proxy_url = "http://127.0.0.1:2375"
+timeout_seconds = 30
+max_log_bytes = 20000000       # per container per request
+ignore = []                    # container names never flagged (e.g. ones you stop on purpose)
+known_noise = []               # same format as [[journal.known_noise]]
+# Container logs have no syslog priority, so a line counts as an error if it
+# matches one of these. Calibrated on 14 days of this server's container logs.
+error_patterns = [
+  '(?i)\blevel=(error|fatal|crit|critical|panic)\b',
+  '(?i)"level":\s*"(error|fatal|crit|critical|panic)"',
+  '\b(ERROR|FATAL|PANIC|CRITICAL)\b',
+  '\[(error|fatal|crit)\]',
+  'Traceback \(most recent call last\)',
+  '\bpanic:',
+  '(?i)\bunhandled (exception|rejection)\b',
+]

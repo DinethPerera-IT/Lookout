@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from . import config, pipeline
-from .collectors import host, journal, prometheus, systemd
+from .collectors import docker, host, journal, prometheus, systemd
 from .state import State
 
 # Metrics first, so later stages (the LLM in particular) can't distort them.
@@ -17,6 +17,7 @@ COLLECTORS = {
     "prometheus": prometheus.collect,
     "systemd": systemd.collect,
     "journal": journal.collect,
+    "docker": docker.collect,
 }
 
 
@@ -61,6 +62,13 @@ def detect(args, cfg):
         except Exception as e:
             # No baseline yet: spike rules fall back to warm-up mode, and this is reported.
             facts["baseline_seed"] = {"ok": False, "error": f"{type(e).__name__}: {e}"}
+        if facts["docker"].get("ok"):  # if the proxy is down, the docker blind spot already says so
+            try:
+                pipeline.seed_docker_if_needed(state, cfg, now)
+            except Exception as e:
+                # Without a baseline every container error would look "novel": skip log rules this run.
+                facts["docker"].update(by_source={}, error_templates={})
+                facts["docker_baseline_seed"] = {"ok": False, "error": f"{type(e).__name__}: {e}"}
         result = pipeline.run(facts, state, cfg, now)
         if not args.dry_run:
             state.commit()

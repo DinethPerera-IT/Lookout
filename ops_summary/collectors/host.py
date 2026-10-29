@@ -27,7 +27,15 @@ def disk(mountpoint):
     return {"mountpoint": mountpoint, "used_pct": round(used_pct, 1), "avail_bytes": usage.free}
 
 
-def collect(cfg, meminfo_path="/proc/meminfo"):
+def boot_time(stat_text):
+    """Boot time (epoch seconds) from /proc/stat's btime line."""
+    for line in stat_text.splitlines():
+        if line.startswith("btime "):
+            return int(line.split()[1])
+    return None
+
+
+def collect(cfg, meminfo_path="/proc/meminfo", stat_path="/proc/stat"):
     mem = parse_meminfo(Path(meminfo_path).read_text())
     load1, load5, load15 = os.getloadavg()
     return {
@@ -40,4 +48,5 @@ def collect(cfg, meminfo_path="/proc/meminfo"):
             "swap_used_bytes": mem["SwapTotal"] - mem["SwapFree"],
         },
         "load": {"load1": load1, "load5": load5, "load15": load15, "cpus": os.cpu_count()},
+        "boot_time": boot_time(Path(stat_path).read_text()),
     }

@@ -6,13 +6,17 @@ names, mountpoints). Log text never goes in the summary, only in `evidence`,
 so later stages can always quote it as untrusted data.
 """
 from dataclasses import asdict, dataclass, field
+from datetime import datetime, timezone
 from statistics import median
 
+from .collectors.docker import uptime_bounds
 from .redact import redact
 from .state import RANK
 from .templates import fingerprint
 
 GIB = 1024 ** 3
+LOG_SECTIONS = ("journal", "docker")
+RESTART_SLACK = 120  # seconds of tolerance for clock jitter between runs
 
 
 @dataclass
@@ -33,11 +37,17 @@ class Baseline:
     hours: int                 # hours of error history available
     error_counts: dict         # source -> hourly counts, zero-filled, len == hours
     known_templates: set       # {(source, template)}
+    containers: dict = field(default_factory=dict)  # name -> snapshot from the last run
+    previous_run_at: float = None
 
 
 def ok(facts, section):
     data = facts.get(section)
     return data if data and data.get("ok") else None
+
+
+def log_sections(facts):
+    return [s for s in (ok(facts, name) for name in LOG_SECTIONS) if s]
 
 
 def level(value, warn, crit, below=False):
@@ -155,14 +165,11 @@ def spike_threshold(history, cfg):
 
 
 def error_spikes(facts, baseline, cfg):
-    journal = ok(facts, "journal")
-    if not journal:
-        return []
     b = cfg["baseline"]
     window = facts.get("window_minutes", cfg["window_minutes"])
     warming = baseline.hours < b["history_hours"]
     flags = []
-    for source, counts in journal["by_source"].items():
+    for section, source, counts in ((s, src, c) for s in log_sections(facts) for src, c in s["by_source"].items()):
         n = counts["errors"]
         if not n:
             continue
@@ -178,17 +185,15 @@ def error_spikes(facts, baseline, cfg):
         sev = "crit" if n >= threshold * b["spike_crit_multiplier"] else "warn"
         flags.append(Flag(f"error_spike:{source}", "error_spike", sev,
                           f"{source}: {n} errors in the last {window} min ({normal})",
-                          kind="event", evidence=examples(journal, source)))
+                          kind="event", evidence=examples(section, source)))
     return flags
 
 
 def novel_errors(facts, baseline, cfg):
-    journal = ok(facts, "journal")
-    if not journal:
-        return []
     window = facts.get("window_minutes", cfg["window_minutes"])
     novel = sorted(((slot["count"], source, template, slot["examples"])
-                    for source, templates in journal.get("error_templates", {}).items()
+                    for section in log_sections(facts)
+                    for source, templates in section.get("error_templates", {}).items()
                     for template, slot in templates.items()
                     if (source, template) not in baseline.known_templates),
                    key=lambda x: (-x[0], x[1], x[2]))
@@ -206,14 +211,65 @@ def novel_errors(facts, baseline, cfg):
     return flags
 
 
-def examples(journal, source, limit=3):
+def examples(section, source, limit=3):
     lines = []
-    for slot in sorted(journal.get("error_templates", {}).get(source, {}).values(), key=lambda s: -s["count"]):
+    for slot in sorted(section.get("error_templates", {}).get(source, {}).values(), key=lambda s: -s["count"]):
         lines.extend(slot["examples"])
     return lines[:limit]
 
 
-RULES = [blind_spots, disk, memory, load, failed_units, wifi, error_spikes, novel_errors]
+def rebooted_since_last_run(facts, baseline):
+    boot = (ok(facts, "host") or {}).get("boot_time")
+    return boot if boot and baseline.previous_run_at and boot > baseline.previous_run_at else None
+
+
+def host_reboot(facts, baseline, cfg):
+    boot = rebooted_since_last_run(facts, baseline)
+    if not boot:
+        return []
+    when = datetime.fromtimestamp(boot, timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    return [Flag(f"host_reboot:{int(boot)}", "host_reboot", "warn",
+                 f"The server rebooted at {when}, since the last check", kind="event")]
+
+
+def containers(facts, baseline, cfg):
+    docker = ok(facts, "docker")
+    if not docker:
+        return []
+    ignore = set(cfg["docker"]["ignore"])
+    rebooted = rebooted_since_last_run(facts, baseline)
+    flags, seen = [], set()
+    for c in docker["containers"]:
+        name = c["name"]
+        seen.add(name)
+        if name in ignore:
+            continue
+        prev = baseline.containers.get(name)
+        if c["state"] == "restarting":
+            flags.append(Flag(f"container_restarting:{name}", "container", "crit",
+                              f"Container {name} is stuck restarting ({c['status']})"))
+        elif c["state"] != "running" and prev and prev["was_running"]:
+            flags.append(Flag(f"container_down:{name}", "container", "crit",
+                              f"Container {name} is not running ({c['status']}); it was running before"))
+        if c["health"] == "unhealthy":
+            flags.append(Flag(f"container_unhealthy:{name}", "container", "warn",
+                              f"Container {name} is failing its healthcheck ({c['status']})"))
+        up = uptime_bounds(c["status"]) if c["state"] == "running" else None
+        if (up and prev and not rebooted and prev["id"] == c["id"] and prev["state"] == "running"
+                and prev["up_min"] is not None
+                and up[1] < prev["up_min"] + (docker["checked_at"] - prev["seen_at"]) - RESTART_SLACK):
+            flags.append(Flag(f"container_restart:{name}", "container", "warn",
+                              f"Container {name} restarted since the last check (now: {c['status']})",
+                              kind="event"))
+    for name, prev in baseline.containers.items():
+        if name not in seen and name not in ignore and prev["was_running"]:
+            flags.append(Flag(f"container_gone:{name}", "container", "warn",
+                              f"Container {name} no longer exists (it was running before)", kind="event"))
+    return flags
+
+
+RULES = [blind_spots, disk, memory, load, failed_units, wifi, host_reboot, containers,
+         error_spikes, novel_errors]
 
 
 def evaluate(facts, baseline, cfg, rules=RULES):

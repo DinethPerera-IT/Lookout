@@ -2,7 +2,7 @@
 
 An hourly, read-only job for my homelab. It collects logs and metrics, uses **deterministic rules** to decide whether anything is unusual, and posts the flagged facts to Discord. A **local** LLM (Ollama) adds a plain-English explanation on top. When nothing is unusual it stays silent.
 
-> Status: **Phase 3 of 8 (detection + state) complete.** Nothing is sent anywhere yet.
+> Status: **Phase 4 of 8 (Docker via read-only proxy) complete.** Nothing is sent anywhere yet.
 
 ## What is it?
 
@@ -87,7 +87,7 @@ Trying to associate with aa:bb:… (SSID='…') → Trying to associate with <ma
 | Novel error | an error *template* never seen before | — |
 | Blind spot | a collector failed, or a Prometheus target is down | — |
 
-(Docker container rules arrive in phase 4.)
+(Docker container rules: see phase 4.)
 
 **How does it work?**
 
@@ -127,6 +127,55 @@ $ python3 -m ops_summary --fixture tests/fixtures/scenarios/disk.json
 
 On the live server, a dry run seeds a full 168 h baseline and reports **0 flags** in about 0.3 s.
 
+### Phase 4: Docker, through a read-only proxy
+
+**What is it?** A small `haproxy` container (`deploy/docker-socket-proxy/`) sits in front of Docker's API and lets through only three read-only requests. ops-summary talks to the proxy, never to Docker directly.
+
+**Why not just use the Docker socket?** Access to `/var/run/docker.sock`, or membership of the `docker` group, is **root-equivalent**: `docker run -v /:/host …` gives a shell over the whole machine. A monitoring job doesn't need that power, so it shouldn't have it. If ops-summary (or anything that compromised it) only ever reaches the proxy, "read-only" is enforced by the proxy's config, not by trusting my code.
+
+**Why my own haproxy config instead of `tecnativa/docker-socket-proxy`?** I planned to use tecnativa with `CONTAINERS=1`. Checking what that allows showed it permits *every* GET under `/containers/`, including:
+- `/containers/<id>/json` (inspect), which shows every container's environment variables, where database passwords usually live
+- `/containers/<id>/archive` and `/export`, which copy files (or a whole filesystem) out of any container
+
+Any local service account could have used the proxy to read secrets. The custom config is about 20 lines and allows only:
+
+| Allowed (GET only) | Used for |
+|---|---|
+| `/containers/json` | name, state, status text ("Up 13 days (healthy)"), health. No env vars. |
+| `/containers/<id>/logs` (without `follow`) | container logs for error counting |
+| `/_ping` | health check |
+
+Everything else returns 403: start/stop/exec/create/delete, inspect, archive, export, images, events, system info. `tests/check_proxy.py` proves this with 17 requests. The "must be blocked" checks target a container that doesn't exist, so even a broken proxy couldn't change anything.
+
+Hardening: bound to `127.0.0.1` only, read-only filesystem, all Linux capabilities dropped, `no-new-privileges`, image pinned to `haproxy:3.2.25-alpine` (LTS branch).
+
+**Residual risk (honest):** any process on this machine can reach `127.0.0.1:2375` and list containers or read container logs. Logs sometimes contain secrets. ops-summary redacts them, but another reader wouldn't. This is far smaller than socket access, and the README says so rather than hiding it.
+
+**How restarts are detected without `inspect`.** Docker's event log was the obvious source, but it keeps only the last **256 events** in memory, and on this server healthcheck `exec` events fill that in about an hour. So the job compares *uptime* between runs instead. Docker shows rounded uptimes ("Up About an hour" means anywhere from 60 to 90 minutes), so each phrase is turned into a range `[min, max]`. A container **certainly** restarted if:
+
+```
+max uptime now  <  min uptime last run  +  time since last run  −  2 min slack
+```
+
+A restart 5 minutes before the check is caught ("Up 5 minutes"), and the rounding can never fake one (tested: "Up 5 minutes" → an hour later "Up About an hour" is *not* a restart).
+
+**Container rules**
+
+| Rule | Flags when | Kind |
+|---|---|---|
+| Down | a container that has been seen running is now exited (crit) | state: resolves when it runs again |
+| Restart loop | Docker reports it `restarting` (crit) | state |
+| Unhealthy | its healthcheck reports `unhealthy` (warn) | state |
+| Restarted | uptime says it restarted since the last check (warn) | event |
+| Gone | a container that was running no longer exists (warn) | event |
+| Host reboot | `/proc/stat` boot time is newer than the last run: **one** flag instead of 12 container restarts | event |
+
+Containers never seen running (this server has 14 leftover `docker run` containers from months ago) are never flagged. `[docker] ignore` in `config.toml` lists containers you stop on purpose.
+
+**Container logs** feed the same spike and novel-error rules as the journal, as sources named `docker:<name>`. They have no syslog priority, so a line counts as an error if it matches `[docker] error_patterns` (`level=error`, `ERROR`/`FATAL`, Python tracebacks, Go panics…), calibrated on 14 days of real logs: 33 matches in about 27,000 lines. The container-log baseline is seeded separately the first time the proxy is reachable.
+
+**Live result:** the proxy passes 17/17 checks, the job sees all 27 containers (6 fields each, no env vars), and a dry run reports 0 flags. A normal run takes about 6 s. Most of that is one container: Docker's json-file driver scans a container's *whole* log file to filter by time, and uptime-kuma's has grown to 141 MB because Docker log rotation wasn't configured on that host.
+
 ## Usage
 
 ```bash
@@ -143,6 +192,7 @@ python3 -m venv .venv && .venv/bin/pip install pytest
 .venv/bin/pytest -q
 .venv/bin/python -m tests.record_prometheus_fixtures   # re-record Prometheus fixtures
 .venv/bin/python -m tests.scan_real_logs 24            # redaction check on real logs (counts only)
+.venv/bin/python -m tests.check_proxy                  # Docker proxy allows only list/logs/ping
 ```
 
 
@@ -158,7 +208,7 @@ The Discord webhook and Kuma push URLs live in `.env` (gitignored, `chmod 600`, 
 | 1 | Skeleton + collectors (journal, systemd, host, Prometheus) | ✅ |
 | 2 | Redaction of secrets/MACs/SSIDs | ✅ |
 | 3 | Detection rules + SQLite state (baselines, cooldown, resolved) | ✅ |
-| 4 | Docker via read-only socket proxy | |
+| 4 | Docker via read-only socket proxy | ✅ |
 | 5 | Discord report + Kuma heartbeat | |
 | 6 | Model benchmark (speed + "did it invent facts?") | |
 | 7 | LLM explanation layer with validation and fallback | |

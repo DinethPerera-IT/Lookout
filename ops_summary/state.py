@@ -26,6 +26,10 @@ SCHEMA = [
         key TEXT PRIMARY KEY, kind TEXT, severity TEXT, summary TEXT,
         first_seen REAL, last_reported REAL, resolved_at REAL, resolved_notified INTEGER DEFAULT 0,
         last_resolved_notice REAL)""",
+    # Containers as seen at the last run, to detect restarts and disappearances.
+    # was_running is sticky: once seen running, a stopped container stays "expected".
+    """CREATE TABLE IF NOT EXISTS containers (
+        name TEXT PRIMARY KEY, id TEXT, state TEXT, up_min REAL, was_running INTEGER, seen_at REAL)""",
 ]
 
 
@@ -106,12 +110,18 @@ class State:
         self.conn.close()  # uncommitted changes are rolled back
 
     # --- baseline ---------------------------------------------------------
-    def baseline_start(self):
-        row = self.conn.execute("SELECT value FROM meta WHERE key = 'baseline_start'").fetchone()
+    def meta(self, key):
+        row = self.conn.execute("SELECT value FROM meta WHERE key = ?", (key,)).fetchone()
         return float(row["value"]) if row else None
 
+    def set_meta(self, key, value):
+        self.conn.execute("INSERT OR REPLACE INTO meta VALUES (?, ?)", (key, str(value)))
+
+    def baseline_start(self):
+        return self.meta("baseline_start")
+
     def set_baseline_start(self, ts):
-        self.conn.execute("INSERT OR REPLACE INTO meta VALUES ('baseline_start', ?)", (str(ts),))
+        self.set_meta("baseline_start", ts)
 
     def add_samples(self, samples):
         """samples: {(source, hour): count}. Re-running an hour replaces its count."""
@@ -139,6 +149,16 @@ class State:
             "first_seen = min(first_seen, excluded.first_seen), "
             "last_seen = max(last_seen, excluded.last_seen), count = count + excluded.count",
             [(s, t, first, last, n) for (s, t), (first, last, n) in templates.items()])
+
+    # --- containers -------------------------------------------------------
+    def containers(self):
+        return {r["name"]: dict(r) for r in self.conn.execute("SELECT * FROM containers")}
+
+    def save_containers(self, rows):
+        """rows: [{name, id, state, up_min, was_running, seen_at}]; replaces the snapshot."""
+        self.conn.execute("DELETE FROM containers")
+        self.conn.executemany(
+            "INSERT INTO containers VALUES (:name, :id, :state, :up_min, :was_running, :seen_at)", rows)
 
     # --- issues -----------------------------------------------------------
     def issues(self):

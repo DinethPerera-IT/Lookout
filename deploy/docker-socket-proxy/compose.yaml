@@ -1,0 +1,22 @@
+# Read-only Docker API for ops-summary, on 127.0.0.1:2375 only.
+# Validate: docker compose config    Start (after review): docker compose up -d
+services:
+  docker-socket-proxy:
+    image: haproxy:3.2.25-alpine
+    container_name: docker-socket-proxy
+    restart: unless-stopped
+    # The image runs as the unprivileged "haproxy" user; the docker group (gid 108
+    # on this host) lets it open the socket. Check with: getent group docker
+    group_add:
+      - "108"
+    volumes:
+      - ./haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+      # :ro stops the socket *file* being replaced; it does NOT make the API
+      # read-only. haproxy.cfg's allowlist is what enforces read-only.
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    ports:
+      - "127.0.0.1:2375:2375"   # loopback only, never the LAN
+    read_only: true
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true

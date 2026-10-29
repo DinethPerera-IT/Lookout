@@ -2,7 +2,7 @@
 import json
 
 from . import detect
-from .collectors import journal
+from .collectors import docker, journal
 from .state import HOUR, State, decide
 
 
@@ -21,6 +21,17 @@ def seed_if_needed(state, cfg, now, history=journal.history):
     return True
 
 
+def seed_docker_if_needed(state, cfg, now, history=docker.history):
+    """Seed container-log baselines separately: the proxy may come up later than the journal seed."""
+    if state.meta("seeded:docker") is not None:
+        return False
+    h = history(cfg, now)
+    state.add_samples(h["samples"])
+    state.add_templates(h["templates"])
+    state.set_meta("seeded:docker", now)
+    return True
+
+
 def load_baseline(state, cfg, now):
     end_hour = int(window_start(cfg, now) // HOUR)  # current window excluded
     start = state.baseline_start()
@@ -29,19 +40,28 @@ def load_baseline(state, cfg, now):
     hours = range(start_hour, end_hour)
     counts = {source: [by_hour.get(h, 0) for h in hours]
               for source, by_hour in state.error_samples(start_hour, end_hour).items()}
-    return detect.Baseline(len(hours), counts, state.known_templates())
+    return detect.Baseline(len(hours), counts, state.known_templates(),
+                           state.containers(), state.meta("last_run_at"))
 
 
 def record_window(state, facts, cfg, now):
-    """Add this window's error counts and templates to the baseline."""
-    j = detect.ok(facts, "journal")
-    if not j:
-        return
+    """Add this window's error counts and templates to the baseline; snapshot containers."""
     hour = int(window_start(cfg, now) // HOUR)
-    state.add_samples({(source, hour): c["errors"] for source, c in j["by_source"].items() if c["errors"]})
-    state.add_templates({(source, template): (now, now, slot["count"])
-                         for source, templates in j.get("error_templates", {}).items()
-                         for template, slot in templates.items()})
+    for section in detect.log_sections(facts):
+        state.add_samples({(source, hour): c["errors"] for source, c in section["by_source"].items() if c["errors"]})
+        state.add_templates({(source, template): (now, now, slot["count"])
+                             for source, templates in section.get("error_templates", {}).items()
+                             for template, slot in templates.items()})
+    d = detect.ok(facts, "docker")
+    if d:
+        previous = state.containers()
+        state.save_containers([
+            {"name": c["name"], "id": c["id"], "state": c["state"],
+             "up_min": (docker.uptime_bounds(c["status"]) or (None,))[0] if c["state"] == "running" else None,
+             "was_running": int(c["state"] == "running" or bool(previous.get(c["name"], {}).get("was_running"))),
+             "seen_at": d["checked_at"]}
+            for c in d["containers"]])
+    state.set_meta("last_run_at", now)
 
 
 def run(facts, state, cfg, now):
@@ -92,6 +112,8 @@ def run_scenario(path, cfg):
         for step in scenario["runs"]:
             now = SCENARIO_EPOCH + step.get("minutes", 0) * 60
             facts = {"window_minutes": cfg["window_minutes"], **step["facts"]}
+            if "docker" in facts:
+                facts["docker"] = {"checked_at": now, **facts["docker"]}
             results.append({"minutes": step.get("minutes", 0), **run(facts, state, cfg, now)})
         return scenario, results
     finally:

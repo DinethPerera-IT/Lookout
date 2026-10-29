@@ -1,0 +1,29 @@
+{
+  "description": "Restarts are detected from uptime: grafana restarts, then its rounded uptime ('About an hour') must not look like another restart; uptime-kuma restarts and fails its healthcheck, then recovers.",
+  "runs": [
+    {"minutes": 0, "facts": {"docker": {"ok": true, "by_source": {}, "error_templates": {}, "containers": [
+       {"name": "grafana", "id": "8a9e6c5ae1f2", "image": "grafana/grafana", "state": "running", "status": "Up 13 days", "health": "none"},
+       {"name": "uptime-kuma", "id": "6c80ad3ed2d6", "image": "louislam/uptime-kuma", "state": "running", "status": "Up 13 days (healthy)", "health": "healthy"}]}},
+     "expect": {}},
+    {"minutes": 60, "facts": {"docker": {"ok": true, "by_source": {}, "error_templates": {}, "containers": [
+       {"name": "grafana", "id": "8a9e6c5ae1f2", "image": "grafana/grafana", "state": "running", "status": "Up 5 minutes", "health": "none"},
+       {"name": "uptime-kuma", "id": "6c80ad3ed2d6", "image": "louislam/uptime-kuma", "state": "running", "status": "Up 13 days (healthy)", "health": "healthy"}]}},
+     "expect": {"report": {"container_restart:grafana": "new"}}},
+    {"minutes": 120, "facts": {"docker": {"ok": true, "by_source": {}, "error_templates": {}, "containers": [
+       {"name": "grafana", "id": "8a9e6c5ae1f2", "image": "grafana/grafana", "state": "running", "status": "Up About an hour", "health": "none"},
+       {"name": "uptime-kuma", "id": "6c80ad3ed2d6", "image": "louislam/uptime-kuma", "state": "running", "status": "Up 13 days (healthy)", "health": "healthy"}]}},
+     "expect": {}},
+    {"minutes": 180, "facts": {"docker": {"ok": true, "by_source": {}, "error_templates": {}, "containers": [
+       {"name": "grafana", "id": "8a9e6c5ae1f2", "image": "grafana/grafana", "state": "running", "status": "Up 2 hours", "health": "none"},
+       {"name": "uptime-kuma", "id": "6c80ad3ed2d6", "image": "louislam/uptime-kuma", "state": "running", "status": "Up 13 days (healthy)", "health": "healthy"}]}},
+     "expect": {}},
+    {"minutes": 240, "facts": {"docker": {"ok": true, "by_source": {}, "error_templates": {}, "containers": [
+       {"name": "grafana", "id": "8a9e6c5ae1f2", "image": "grafana/grafana", "state": "running", "status": "Up 3 hours", "health": "none"},
+       {"name": "uptime-kuma", "id": "6c80ad3ed2d6", "image": "louislam/uptime-kuma", "state": "running", "status": "Up 30 seconds (unhealthy)", "health": "unhealthy"}]}},
+     "expect": {"report": {"container_restart:uptime-kuma": "new", "container_unhealthy:uptime-kuma": "new"}}},
+    {"minutes": 300, "facts": {"docker": {"ok": true, "by_source": {}, "error_templates": {}, "containers": [
+       {"name": "grafana", "id": "8a9e6c5ae1f2", "image": "grafana/grafana", "state": "running", "status": "Up 4 hours", "health": "none"},
+       {"name": "uptime-kuma", "id": "6c80ad3ed2d6", "image": "louislam/uptime-kuma", "state": "running", "status": "Up About an hour (healthy)", "health": "healthy"}]}},
+     "expect": {"resolved": ["container_unhealthy:uptime-kuma"]}}
+  ]
+}

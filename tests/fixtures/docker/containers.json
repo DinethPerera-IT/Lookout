@@ -1,0 +1,54 @@
+[
+ {
+  "Id": "58bf1e452cab2887216eb08bb48da5dc54f116c956d6c3461f02642e8b05a903",
+  "Names": [
+   "/commoncents-db"
+  ],
+  "Image": "postgres:16-alpine",
+  "State": "running",
+  "Status": "Up 13 days (healthy)",
+  "Health": {
+   "Status": "healthy",
+   "FailingStreak": 0
+  }
+ },
+ {
+  "Id": "14ba5c7c9771ed0ac74618d42695d6ba2700763a1889a5745856b4bb9190856b",
+  "Names": [
+   "/clever_swirles"
+  ],
+  "Image": "sha256:cab72311f9fac6b063f33bd46dfa5e85b5a051571ef8484bdbae44a9c56e2b76",
+  "State": "exited",
+  "Status": "Exited (1) 3 months ago",
+  "Health": {
+   "Status": "none",
+   "FailingStreak": 0
+  }
+ },
+ {
+  "Id": "ff0523461494ed6c96a6c010caff7548eb0a02cbd1058a4a3069a5dc8a96e872",
+  "Names": [
+   "/grafana"
+  ],
+  "Image": "grafana/grafana",
+  "State": "running",
+  "Status": "Up 13 days",
+  "Health": {
+   "Status": "none",
+   "FailingStreak": 0
+  }
+ },
+ {
+  "Id": "594e804f8cb6c757f7fcce8518c8010e7e6217bf5f86edf0482d72814357b27f",
+  "Names": [
+   "/uptime-kuma"
+  ],
+  "Image": "louislam/uptime-kuma",
+  "State": "running",
+  "Status": "Up 13 days (healthy)",
+  "Health": {
+   "Status": "healthy",
+   "FailingStreak": 0
+  }
+ }
+]

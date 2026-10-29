@@ -7,13 +7,12 @@ import json
 import re
 import subprocess
 
+from ..logstats import History, LogStats
 from ..redact import redact
-from ..templates import normalize_source, template_of
+from ..templates import normalize_source
 from . import run
 
 ERROR_PRIORITY = 3  # syslog: 0 emerg .. 3 err
-MAX_EXAMPLES = 3
-MAX_EXAMPLE_LENGTH = 300
 
 
 def source_of(entry):
@@ -69,26 +68,10 @@ def read(since_minutes, timeout, kernel_only=False, until_minutes=None, errors_o
 
 def summarise(entries, noise=()):
     """Count entries per source; group errors (minus known noise) into templates."""
-    by_source = {}
-    error_templates = {}
+    stats = LogStats(noise)
     for entry in entries:
-        source = source_of(entry)
-        counts = by_source.setdefault(source, {"total": 0, "errors": 0, "noise": 0})
-        counts["total"] += 1
-        if not is_error(entry):
-            continue
-        message = entry["MESSAGE"]
-        if any(p.search(message) for p in noise):
-            counts["noise"] += 1
-            continue
-        counts["errors"] += 1
-        slot = error_templates.setdefault(source, {}).setdefault(
-            template_of(message), {"count": 0, "examples": []})
-        slot["count"] += 1
-        if len(slot["examples"]) < MAX_EXAMPLES:
-            slot["examples"].append(message[:MAX_EXAMPLE_LENGTH])
-    return {"total": len(entries), "by_source": dict(sorted(by_source.items())),
-            "error_templates": error_templates}
+        stats.add(source_of(entry), entry["MESSAGE"], is_error(entry))
+    return stats.result()
 
 
 def count_matching(entries, pattern):
@@ -127,23 +110,15 @@ def history(cfg, now):
     """
     window = cfg["window_minutes"]
     hours = cfg["baseline"]["history_hours"]
-    noise = noise_patterns(cfg)
     # One extra hour so the oldest hour bucket is complete
     entries = read(hours * 60 + window + 60, cfg["journal"]["timeout_seconds"],
                    until_minutes=window, errors_only=True)
-    samples, templates = {}, {}
+    hist = History(noise_patterns(cfg))
     for entry in entries:
-        if any(p.search(entry["MESSAGE"]) for p in noise):
-            continue
-        source, ts = source_of(entry), timestamp_of(entry)
-        key = (source, int(ts // 3600))
-        samples[key] = samples.get(key, 0) + 1
-        tkey = (source, template_of(entry["MESSAGE"]))
-        first, last, count = templates.get(tkey, (ts, ts, 0))
-        templates[tkey] = (min(first, ts), max(last, ts), count + 1)
+        hist.add_error(source_of(entry), timestamp_of(entry), entry["MESSAGE"])
     window_start = now - window * 60
     first_full_hour = (int(window_start // 3600) - hours) * 3600
     oldest = oldest_timestamp()
     if oldest is None:
         oldest = window_start
-    return {"start": max(oldest, first_full_hour), "samples": samples, "templates": templates}
+    return {"start": max(oldest, first_full_hour), "samples": hist.samples, "templates": hist.templates}
