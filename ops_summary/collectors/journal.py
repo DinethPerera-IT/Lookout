@@ -1,10 +1,11 @@
 """Journal error counts per source, plus WiFi re-authentication count.
 
-Phase 1 returns counts only. Message text stays inside this module until the
-redactor exists (phase 2), so no raw log line can reach stdout.
+Messages are redacted as they are parsed, so no unredacted log text exists
+outside this module.
 """
 import json
 
+from ..redact import redact
 from . import run
 
 ERROR_PRIORITY = 3  # syslog: 0 emerg .. 3 err
@@ -29,9 +30,11 @@ def parse(stdout):
     entries = []
     for line in stdout.splitlines():
         try:
-            entries.append(json.loads(line))
+            entry = json.loads(line)
         except json.JSONDecodeError:
             continue
+        entry["MESSAGE"] = redact(message_of(entry))
+        entries.append(entry)
     return entries
 
 

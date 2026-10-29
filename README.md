@@ -2,7 +2,7 @@
 
 An hourly, read-only job for my homelab. It collects logs and metrics, uses **deterministic rules** to decide whether anything is unusual, and posts the flagged facts to Discord. A **local** LLM (Ollama) adds a plain-English explanation on top. When nothing is unusual it stays silent.
 
-> Status: **Phase 1 of 8 (collectors) complete.** Nothing is sent anywhere yet.
+> Status: **Phase 2 of 8 (redaction) complete.** Nothing is sent anywhere yet.
 
 ## What is it?
 
@@ -39,12 +39,42 @@ Each collector returns `{"ok": true, ...}` or `{"ok": false, "error": "..."}`. A
 
 **Why Prometheus *and* /proc?** A snapshot at 11:00 misses a memory spike at 10:20. `min_over_time`/`max_over_time` over the window doesn't. `/proc` is the fallback.
 
-**Why counts only from the journal (for now)?** Log text can contain secrets. Until the redactor exists (phase 2), message text never leaves the collector.
+### Phase 2: redaction
+
+**What is it?** Before any log line is stored, printed, sent to the local LLM, or posted to Discord, `ops_summary/redact.py` replaces secrets and identifying data with placeholders:
+
+```
+login password=hunter2                    →  login password=<redacted>
+Authorization: Bearer abc123…             →  Authorization: <redacted>
+postgres://app:pa55@db/hr                 →  postgres://<redacted>@db/hr
+Trying to associate with aa:bb:… (SSID='…') → Trying to associate with <mac> (SSID=<ssid>)
+```
+
+**How does it work?** An ordered list of regular expressions, most specific first:
+
+1. Known formats: private keys, Discord webhooks, Kuma push tokens, credentials in URLs, auth headers, bearer tokens, JWTs, GitHub/Slack/AWS/Tailscale tokens
+2. `key=value` pairs where the key sounds secret (`password`, `token`, `api_key`, `secret`…). The key name and quoting are kept, so lines stay readable and JSON stays valid.
+3. Personal data: email addresses, MAC addresses, WiFi network names (an SSID can contain a home address)
+4. Catch-alls for unknown token formats: long runs mixing letters and digits, and base64 blobs
+
+**Design choices**
+- **Redact once, at the entry point.** The journal collector redacts every message as it's parsed, so no later stage ever holds raw log text. "Local" doesn't mean "private": output ends up in Discord, the systemd journal and GitHub fixtures.
+- **Err on the side of redacting.** A false positive (a container ID becomes `<token>`) costs nothing. A false negative leaks a secret. In 14 days of real logs, 1,261 of the 1,263 catch-all hits were hex IDs and hashes, which is acceptable noise.
+- **IP addresses are kept.** "Failed SSH login from 203.0.113.7" is useful context and not a secret.
+- **The tests contain no realistic secrets.** Fake tokens are assembled from fragments at runtime, so GitHub secret scanning doesn't flag the repo.
+
+**Proof on real logs:** `tests/scan_real_logs.py` runs the redactor over real journal and container logs and prints **counts only**. A second, independent set of "does this still look like a secret?" patterns (`find_leaks`) checks the result.
+
+| Window | Lines scanned | Possible leaks before | after |
+|---|---|---|---|
+| 24 h | ~2,800 | 0 | 0 |
+| 14 days | ~55,000 | 1 | 0 |
 
 ## Usage
 
 ```bash
 python3 -m ops_summary --dry-run            # collect and print facts as JSON
+echo 'password=hunter2' | python3 -m ops_summary.redact   # try the redactor
 ```
 
 No third-party runtime dependencies (stdlib only). Tests need pytest:
@@ -53,7 +83,10 @@ No third-party runtime dependencies (stdlib only). Tests need pytest:
 python3 -m venv .venv && .venv/bin/pip install pytest
 .venv/bin/pytest -q
 .venv/bin/python -m tests.record_prometheus_fixtures   # re-record Prometheus fixtures
+.venv/bin/python -m tests.scan_real_logs 24            # redaction check on real logs (counts only)
 ```
+
+
 
 ## Secrets
 
@@ -64,7 +97,7 @@ The Discord webhook and Kuma push URLs live in `.env` (gitignored, `chmod 600`, 
 | # | Phase | Status |
 |---|---|---|
 | 1 | Skeleton + collectors (journal, systemd, host, Prometheus) | ✅ |
-| 2 | Redaction of secrets/MACs/SSIDs | |
+| 2 | Redaction of secrets/MACs/SSIDs | ✅ |
 | 3 | Detection rules + SQLite state (baselines, cooldown, resolved) | |
 | 4 | Docker via read-only socket proxy | |
 | 5 | Discord report + Kuma heartbeat | |
