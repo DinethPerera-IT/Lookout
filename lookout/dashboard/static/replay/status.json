@@ -12,6 +12,7 @@
  },
  "runs_24h": 17,
  "snapshot": {
+  "log_lines": 0,
   "collectors": {
    "host": true,
    "prometheus": true,

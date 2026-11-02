@@ -16,6 +16,7 @@
   "ai_status": null,
   "model": null,
   "snapshot": {
+   "log_lines": 0,
    "collectors": {
     "host": true,
     "prometheus": true,
@@ -102,7 +103,8 @@
    ]
   },
   "trigger": null,
-  "duration_ms": 6000.0
+  "duration_ms": 6000.0,
+  "classified": 0
  },
  "recent": [
   {
@@ -117,7 +119,8 @@
    "collect_ms": 5400.0,
    "detect_ms": 38.0,
    "llm_ms": null,
-   "report_ms": 310.0
+   "report_ms": 310.0,
+   "trigger": null
   },
   {
    "id": 2,
@@ -131,7 +134,8 @@
    "collect_ms": 5400.0,
    "detect_ms": 38.0,
    "llm_ms": null,
-   "report_ms": 0.0
+   "report_ms": 0.0,
+   "trigger": null
   },
   {
    "id": 3,
@@ -145,7 +149,8 @@
    "collect_ms": 5400.0,
    "detect_ms": 38.0,
    "llm_ms": null,
-   "report_ms": 310.0
+   "report_ms": 310.0,
+   "trigger": null
   },
   {
    "id": 4,
@@ -159,7 +164,8 @@
    "collect_ms": 5400.0,
    "detect_ms": 38.0,
    "llm_ms": null,
-   "report_ms": 0.0
+   "report_ms": 0.0,
+   "trigger": null
   },
   {
    "id": 5,
@@ -173,7 +179,8 @@
    "collect_ms": 5400.0,
    "detect_ms": 38.0,
    "llm_ms": null,
-   "report_ms": 310.0
+   "report_ms": 310.0,
+   "trigger": null
   },
   {
    "id": 6,
@@ -187,7 +194,8 @@
    "collect_ms": 5400.0,
    "detect_ms": 38.0,
    "llm_ms": null,
-   "report_ms": 310.0
+   "report_ms": 310.0,
+   "trigger": null
   },
   {
    "id": 7,
@@ -201,7 +209,8 @@
    "collect_ms": 5400.0,
    "detect_ms": 38.0,
    "llm_ms": null,
-   "report_ms": 0.0
+   "report_ms": 0.0,
+   "trigger": null
   },
   {
    "id": 8,
@@ -215,7 +224,8 @@
    "collect_ms": 5400.0,
    "detect_ms": 38.0,
    "llm_ms": null,
-   "report_ms": 310.0
+   "report_ms": 310.0,
+   "trigger": null
   },
   {
    "id": 9,
@@ -229,7 +239,8 @@
    "collect_ms": 5400.0,
    "detect_ms": 38.0,
    "llm_ms": null,
-   "report_ms": 0.0
+   "report_ms": 0.0,
+   "trigger": null
   },
   {
    "id": 10,
@@ -243,7 +254,8 @@
    "collect_ms": 5400.0,
    "detect_ms": 38.0,
    "llm_ms": null,
-   "report_ms": 310.0
+   "report_ms": 310.0,
+   "trigger": null
   },
   {
    "id": 11,
@@ -257,7 +269,8 @@
    "collect_ms": 5400.0,
    "detect_ms": 38.0,
    "llm_ms": null,
-   "report_ms": 310.0
+   "report_ms": 310.0,
+   "trigger": null
   },
   {
    "id": 12,
@@ -271,7 +284,8 @@
    "collect_ms": 5400.0,
    "detect_ms": 38.0,
    "llm_ms": null,
-   "report_ms": 310.0
+   "report_ms": 310.0,
+   "trigger": null
   },
   {
    "id": 13,
@@ -285,7 +299,8 @@
    "collect_ms": 5400.0,
    "detect_ms": 38.0,
    "llm_ms": null,
-   "report_ms": 310.0
+   "report_ms": 310.0,
+   "trigger": null
   },
   {
    "id": 14,
@@ -299,7 +314,8 @@
    "collect_ms": 5400.0,
    "detect_ms": 38.0,
    "llm_ms": null,
-   "report_ms": 310.0
+   "report_ms": 310.0,
+   "trigger": null
   },
   {
    "id": 15,
@@ -313,7 +329,8 @@
    "collect_ms": 5400.0,
    "detect_ms": 38.0,
    "llm_ms": null,
-   "report_ms": 0.0
+   "report_ms": 0.0,
+   "trigger": null
   },
   {
    "id": 16,
@@ -327,7 +344,8 @@
    "collect_ms": 5400.0,
    "detect_ms": 38.0,
    "llm_ms": null,
-   "report_ms": 0.0
+   "report_ms": 0.0,
+   "trigger": null
   },
   {
    "id": 17,
@@ -341,7 +359,8 @@
    "collect_ms": 5400.0,
    "detect_ms": 38.0,
    "llm_ms": null,
-   "report_ms": 310.0
+   "report_ms": 310.0,
+   "trigger": null
   },
   {
    "id": 18,
@@ -355,7 +374,8 @@
    "collect_ms": 5400.0,
    "detect_ms": 38.0,
    "llm_ms": null,
-   "report_ms": 310.0
+   "report_ms": 310.0,
+   "trigger": null
   },
   {
    "id": 19,
@@ -369,7 +389,8 @@
    "collect_ms": 5400.0,
    "detect_ms": 38.0,
    "llm_ms": null,
-   "report_ms": 0.0
+   "report_ms": 0.0,
+   "trigger": null
   },
   {
    "id": 20,
@@ -383,7 +404,8 @@
    "collect_ms": 5400.0,
    "detect_ms": 38.0,
    "llm_ms": null,
-   "report_ms": 310.0
+   "report_ms": 310.0,
+   "trigger": null
   },
   {
    "id": 21,
@@ -397,7 +419,8 @@
    "collect_ms": 5400.0,
    "detect_ms": 38.0,
    "llm_ms": null,
-   "report_ms": 310.0
+   "report_ms": 310.0,
+   "trigger": null
   }
  ]
 }

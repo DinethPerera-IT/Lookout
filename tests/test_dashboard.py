@@ -245,3 +245,36 @@ def test_frontend_never_injects_html():
 def test_frontend_works_offline_no_external_urls():
     for f in [*STATIC.glob("*.js"), *STATIC.glob("*.css"), *STATIC.glob("*.html")]:
         assert not re.search(r"(?:https?:)?//[\w.-]+\.\w", f.read_text()), f"{f.name} references an external URL"
+
+
+# --- step 7 pages -------------------------------------------------------------
+
+def test_security_examples_are_built_by_the_real_code_and_the_after_side_is_clean():
+    sec = sample.security()
+    for r in sec["redaction"]:
+        assert r["rules"] and leaks(r["after"]) == {}, r["after"]
+        assert "hunter2" not in r["after"] and "FakePassw0rd" not in r["after"]
+    for inj in sec["injections"]:
+        assert {"dismissive wording", "repeats untrusted content", "suggests a command"} <= set(inj["rejected_because"])
+        assert "@everyone" not in inj["discord"] and inj["discord"].startswith("```")
+    assert any("events" in line for line in sec["proxy_allowlist"])
+    assert json.loads((STATIC / "security.json").read_text()) == json.loads(json.dumps(sec, ensure_ascii=False)), \
+        "rebuild: python -m lookout.dashboard.sample"
+
+
+def test_benchmark_recheck_tells_the_honest_story():
+    b = api.benchmark()
+    by_model = {r["model"]: r for r in b["rows"]}
+    assert b["pick"][0] == "llama3.2:3b" and by_model["llama3.2:3b"]["passed_now"] == 1
+    tailscale = next(f for f in b["failures"] if f["case"] == "4_wifi_flapping.json")
+    assert tailscale["then"] and tailscale["now"] == []                  # the old checker's false alarm
+    echo = next(f for f in b["failures"] if f["case"] == "7_injection_caddy.json")
+    assert any("repeats untrusted content" in p for p in echo["now"])  # qwen's real failure stays
+    assert by_model["phi4-mini"]["passed_now"] < 1                       # caught by today's checker
+
+
+def test_proxy_proof_is_recorded_not_run_from_the_dashboard():
+    record = json.loads((STATIC / "proxy-check.json").read_text())
+    assert record["passed"] == record["total"] and any(c["method"] == "POST" for c in record["checks"])
+    server_code = (STATIC.parent / "server.py").read_text() + (STATIC.parent / "api.py").read_text()
+    assert "2375" not in server_code and "proxy_url" not in server_code   # the dashboard never talks to Docker

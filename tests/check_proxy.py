@@ -7,6 +7,7 @@ the proxy's 403, and the check fails loudly. Response bodies are never printed.
 """
 import json
 import sys
+from pathlib import Path
 import time
 import urllib.error
 import urllib.request
@@ -14,6 +15,7 @@ import urllib.request
 from lookout import config
 
 FAKE = "lookout-check-does-not-exist"
+RECORD = Path(__file__).resolve().parent.parent / "lookout" / "dashboard" / "static" / "proxy-check.json"
 
 
 def status(base, method, path):
@@ -52,13 +54,19 @@ def main():
         ("blocked: events via POST", "POST", "/events", 403),
         ("blocked: system events path trick", "GET", "/system/events", 403),
     ]
-    failures = 0
+    failures, results = 0, []
     for name, method, path, expected in checks:
         got = status(base, method, path)
         ok = got == expected
         failures += not ok
+        results.append({"check": name, "method": method, "path": path.replace(live, "<container>"),
+                        "expected": expected, "got": got, "ok": ok})
         print(f"{'PASS' if ok else 'FAIL'}  {name:36} {method:6} -> {got} (expected {expected})")
     print(f"\n{len(checks) - failures}/{len(checks)} passed")
+    if "--record" in sys.argv:  # for the dashboard's Security page: a recorded proof, not a live POST
+        RECORD.write_text(json.dumps({"verified_at": time.time(), "passed": len(checks) - failures,
+                                      "total": len(checks), "checks": results}, indent=1) + "\n")
+        print(f"recorded to {RECORD.relative_to(RECORD.parents[3])}")
     return 1 if failures else 0
 
 

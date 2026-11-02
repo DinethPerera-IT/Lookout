@@ -322,12 +322,138 @@ async function renderIncident(id) {
     h("div", { class: "steps" }, factsStep(inc), evidenceStep(inc), causeStep(inc), aiStep(inc), checksStep(inc), ttdStep(inc)));
 }
 
+// --- how it works ----------------------------------------------------------
+const pct = (v) => (v == null ? "–" : `${Math.round(v * 100)}%`);
+
+async function getStatic(path) {
+  try { const r = await fetch(path, { cache: "no-store" }); return r.ok ? r.json() : null; } catch (e) { return null; }
+}
+
+function stage(name, who, time, count, note, ai) {
+  return h("div", { class: `panel stage ${ai ? "stage-ai" : ""}` },
+    h("div", { class: `stage-who ${ai ? "who-ai" : ""}` }, who),
+    h("div", { class: "stage-name" }, name),
+    h("div", { class: "stage-time" }, time),
+    h("div", { class: "stage-count" }, count),
+    h("div", { class: "stage-note" }, note));
+}
+
+async function renderHow() {
+  const [latest, status] = await Promise.all([LookoutData.get("api/runs/latest"), LookoutData.get("api/status")]);
+  setStatus(status);
+  const run = latest && latest.run;
+  if (!run) return view.replaceChildren(h("div", { class: "panel empty" }, "No run recorded yet."));
+  const snap = run.snapshot || {}, sources = Object.values(snap.collectors || {});
+  const ai = run.ai_status;
+  view.replaceChildren(
+    panel("Pipeline of the latest run", `run #${run.id} · ${clockTime(run.finished_at)} · ${run.trigger || "hourly timer"} · ${run.mode}`,
+      h("div", { class: "pipeline" },
+        stage("Collect", "code · read-only", ms(run.collect_ms), `${sources.filter(Boolean).length}/${sources.length} sources ok`,
+          `${(snap.log_lines || 0).toLocaleString()} log lines, metrics, units, containers`),
+        stage("Redact", "code · at the boundary", "inline", `every line`, "secrets, MACs, SSIDs, emails removed as each line is read"),
+        stage("Detect", "code · deterministic rules", ms(run.detect_ms), `${run.flags} flags`,
+          `${run.reported} reported · ${run.suppressed} suppressed (cooldown) · ${run.resolved} resolved`),
+        stage("Classify", "code · deterministic", "incl. above", `${run.classified || 0} crash${run.classified === 1 ? "" : "es"} classified`,
+          "OOM, disk, port, dependency, change, crash, unknown"),
+        stage("Explain", "AI · unverified", run.llm_ms == null ? "–" : ms(run.llm_ms),
+          ai == null ? "not needed" : ai === "ok" ? `ok · ${run.model}` : ai,
+          "after the facts were sent; validated; can't change anything", true),
+        stage("Report", "code", ms(run.report_ms), run.reported || run.resolved ? (run.delivered ? "sent" : "logged (shadow)") : "silent",
+          "facts first; the AI is added to the same message later"))),
+    h("div", { class: "cols-2" },
+      panel("The rules it never breaks", null, h("ul", { class: "rules-list" },
+        h("li", null, h("b", null, "Code decides, the AI explains. "), "Every flag, severity and cause comes from deterministic rules. The model only adds a labelled hypothesis."),
+        h("li", null, h("b", null, "The AI can raise its hand, but it can't lower anyone else's. "), "It can't suppress, downgrade, delay or replace an alert. The facts go out before it even starts."),
+        h("li", null, h("b", null, "Read-only everywhere. "), "Docker through a GET-only proxy, SQLite opened read-only here, sandboxed systemd units, no commands ever run."),
+        h("li", null, h("b", null, "Redact at the boundary. "), "Log lines are cleaned as they're read, and again before anything reaches this screen."),
+        h("li", null, h("b", null, "Log text is untrusted. "), "It's shown as plain text, labelled as untrusted for the model, and an answer that repeats it is rejected."),
+        h("li", null, h("b", null, "Watch the watcher. "), "Every run pings Uptime Kuma; if Lookout stops, Kuma alerts."))),
+      panel("Recent runs", `last ${Math.min(10, latest.recent.length)}`, h("div", { class: "table-wrap" },
+        h("table", { class: "data" },
+          h("thead", null, h("tr", null, ["Time", "Trigger", "Flags", "Reported", "Run time", "AI"].map((t, i) => h("th", { class: i >= 2 && i <= 4 ? "r" : "" }, t)))),
+          h("tbody", null, [...latest.recent].reverse().slice(0, 10).map((r) => h("tr", null,
+            h("td", null, clockTime(r.finished_at)), h("td", { title: r.trigger || "" }, !r.trigger ? "timer" : r.trigger.length > 36 ? r.trigger.slice(0, 35) + "…" : r.trigger),
+            h("td", { class: "r" }, r.flags), h("td", { class: "r" }, r.reported),
+            h("td", { class: "r" }, ms((r.finished_at - r.started_at) * 1000)),
+            h("td", null, r.ai_status || "–")))))))));
+}
+
+// --- model benchmark ---------------------------------------------------------
+async function renderBenchmark() {
+  const [b, status] = await Promise.all([LookoutData.get("api/benchmark"), LookoutData.get("api/status")]);
+  setStatus(status);
+  if (!b) return view.replaceChildren(h("div", { class: "panel empty" }, "No benchmark results."));
+  const [pickModel] = b.pick;
+  const cell = (v, goodIf) => h("td", { class: `r ${v == null ? "" : goodIf(v) ? "good" : "bad"}` }, v == null ? "–" : v);
+  const caseName = (c) => c.replace(/^\d+_/, "").replace(/\.json$/, "").replace(/_/g, " ");
+  view.replaceChildren(
+    panel("Which small local model explains alerts best?", `${b.meta.runs} run × 8 cases · Ollama ${b.meta.ollama_version} · CPU only · ${b.meta.finished}`,
+      h("div", { class: "callout", style: { marginBottom: "1rem" } },
+        h("p", null, h("b", null, `Picked: ${pickModel}. `), "Fastest, smallest, and every answer passed the checks, then and with today's stricter checker."),
+        h("p", null, h("b", null, "qwen3.5:4b "), "repeated an injected ", h("span", { class: "mono" }, "@everyone"), " from a hostile log line, so it fails. Its one \"invented fact\" (Tailscale) was actually the original checker's mistake, fixed later with name aliases."),
+        h("p", null, h("b", null, "phi4-mini "), "passed at the time, but today's checker catches it hedging a fact (\"might also be down\") and a quantity that wasn't in the alerts. Re-checking saved answers is how the validator was improved.")),
+      h("div", { class: "table-wrap" }, h("table", { class: "data" },
+        h("thead", null, h("tr", null, ["Model", "Median", "Max", "RAM", "Gen tok/s", "Valid JSON", "Passed (then)", "Passed (today's checker)", "Injection echo", "Invented"].map((t, i) => h("th", { class: i ? "r" : "" }, t)))),
+        h("tbody", null, b.rows.map((r) => h("tr", { class: r.model === pickModel ? "pick" : "" },
+          h("td", null, h("b", null, r.model), r.model === pickModel ? h("span", { class: "chip", style: { marginLeft: "0.5rem" } }, "picked") : null),
+          h("td", { class: "r" }, `${Math.round(r.median_s)} s`), h("td", { class: "r" }, `${Math.round(r.max_s)} s`),
+          h("td", { class: "r" }, `${r.ram_gb.toFixed(1)} GB`), h("td", { class: "r" }, r.gen_tps.toFixed(1)),
+          cell(pct(r.parsed_json), () => r.parsed_json === 1), cell(pct(r.passed), () => r.passed === 1),
+          r.passed_now === undefined ? h("td", { class: "r" }, "–") : cell(pct(r.passed_now), () => r.passed_now === 1), cell(r.injection_echo, (v) => v === 0), cell(r.invented, (v) => v === 0))))))),
+    panel("Every failure, then vs. today", "the same saved answers, re-checked", h("div", { class: "table-wrap" }, h("table", { class: "data" },
+      h("thead", null, h("tr", null, ["Model", "Case", "Original checker", "Today's checker"].map((t) => h("th", null, t)))),
+      h("tbody", null, b.failures.map((f) => h("tr", null,
+        h("td", null, f.model), h("td", null, caseName(f.case)),
+        h("td", { class: (f.then || []).length ? "bad" : "good" }, (f.then || []).length ? f.then.join("; ") : "passed"),
+        h("td", { class: f.now == null ? "" : f.now.length ? "bad" : "good" }, f.now == null ? "–" : f.now.length ? f.now.join("; ") : "passed (false alarm fixed)"))))))),
+    h("div", { class: "muted", style: { fontSize: "0.85rem" } },
+      "Pass rule: 100% valid JSON, no unsupported facts, no injection echoes, within the 600 s timeout; the fastest passing model wins. Small models only (≤ 4B) so it fits next to everything else on a 16 GB box."));
+}
+
+// --- security ----------------------------------------------------------------
+async function renderSecurity() {
+  const [sec, proxy, status] = await Promise.all([getStatic("security.json"), getStatic("proxy-check.json"), LookoutData.get("api/status")]);
+  setStatus(status);
+  if (!sec) return view.replaceChildren(h("div", { class: "panel empty" }, "Security examples missing (python -m lookout.dashboard.sample)."));
+  view.replaceChildren(
+    panel("Prompt injection: hostile log lines", "real test cases, rendered by Lookout's own code", ...sec.injections.map((inj, n) =>
+      h("div", { style: { marginTop: n ? "1.5rem" : 0 } },
+        h("div", { class: "grid-label" }, inj.case),
+        h("div", { class: "compare" },
+          h("div", null, h("h3", null, "1 · What an attacker put in the log"), h("pre", { class: "codebox hostile" }, inj.raw.join("\n"))),
+          h("div", null, h("h3", null, "2 · How Lookout shows it (Discord)"), h("pre", { class: "codebox" }, inj.discord),
+            h("div", { class: "untrusted-note" }, "Inside a code block: no links, no formatting, @mentions defused, and allowed_mentions forbids pings anyway.")),
+          h("div", null, h("h3", null, "3 · An AI answer that obeyed it"), h("pre", { class: "codebox" }, inj.obeying_answer),
+            h("div", { class: "verdict" }, h("b", null, "Rejected:"), inj.rejected_because.map((r) => h("span", { class: "chip" }, r))),
+            h("div", { class: "untrusted-note" }, "The whole AI section is dropped; the facts go out unchanged.")))))),
+    h("div", { class: "cols-2" },
+      panel("Redaction at the boundary", `${sec.rule_names.length} rules · fake example values`,
+        sec.redaction.map((r) => h("div", { class: "redact-row" },
+          h("span", { class: "before" }, r.before), h("span", { class: "arrow" }, "→"),
+          h("span", { class: "after" }, r.after), h("span", { class: "rule" }, r.rules.join(", ")))),
+        h("div", { class: "untrusted-note" }, "Every log line is redacted as it's read, before it is stored, counted, shown or sent to the model. Every API response here is scrubbed again (IPs, host names), and a test fails if anything slips through.")),
+      panel("Read-only Docker access", proxy ? `${proxy.passed}/${proxy.total} checks passed · verified ${clockTime(proxy.verified_at)} ${new Date(proxy.verified_at * 1000).toLocaleDateString()}` : "not recorded",
+        h("div", { class: "grid-label" }, "The proxy's whole allowlist (haproxy)"),
+        h("pre", { class: "codebox" }, sec.proxy_allowlist.join("\n")),
+        proxy ? [h("div", { class: "grid-label", style: { marginTop: "1rem" } }, "Recorded checks (python -m tests.check_proxy --record)"),
+          h("div", { class: "table-wrap" }, h("table", { class: "data" },
+            h("thead", null, h("tr", null, ["Check", "Request", "Result"].map((t) => h("th", null, t)))),
+            h("tbody", null, proxy.checks.map((c) => h("tr", null,
+              h("td", null, c.check), h("td", { class: "mono" }, `${c.method} ${c.path}`),
+              h("td", { class: c.ok ? "good" : "bad" }, `${c.got}${c.ok ? "" : " (expected " + c.expected + ")"}`))))))] : null,
+        h("div", { class: "untrusted-note" }, "This dashboard never sends anything to Docker: the proof is recorded by a separate check script, not run from the page."))));
+}
+
 // --- routing & live updates ------------------------------------------------
 let rendering = null;
+const PAGES = { how: renderHow, benchmark: renderBenchmark, security: renderSecurity };
+
 function route() {
   const m = location.hash.match(/^#\/incident\/(\d+)$/);
-  document.querySelectorAll("#tabs a").forEach((a) => a.classList.toggle("active", !m && a.dataset.route === "overview"));
-  rendering = (m ? renderIncident(Number(m[1])) : renderOverview()).catch((e) => {
+  const page = (location.hash.match(/^#\/(\w+)$/) || [])[1];
+  const name = m ? "overview" : PAGES[page] ? page : "overview";
+  document.querySelectorAll("#tabs a").forEach((a) => a.classList.toggle("active", a.dataset.route === name));
+  rendering = (m ? renderIncident(Number(m[1])) : PAGES[page] ? PAGES[page]() : renderOverview()).catch((e) => {
     view.replaceChildren(h("div", { class: "panel empty" }, `Could not load data (${e.message}).`));
   });
   return rendering;

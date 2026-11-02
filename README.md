@@ -480,6 +480,21 @@ The classifier uses `after_recent_change` when a change happened shortly before 
 - Compose files under `/home` are invisible to the sandboxed service (`ProtectHome`) and are skipped.
 - Lookout's own `OnFailure=` drop-in isn't counted as a change.
 
+### Dashboard pages: How it works, Model benchmark, Security
+
+- **How it works** shows the pipeline of the latest real run: collect → redact → detect → classify → explain → report. Each stage has its time, counts and who did it (code or AI), next to the design rules and the recent runs with what triggered each.
+- **Model benchmark** shows the Phase 6 results *and* the same saved answers re-checked with today's validator. That's the honest version of the story:
+  - qwen3.5:4b's echo of an injected `@everyone` is a real failure.
+  - Its "invented Tailscale" was the original checker's mistake.
+  - phi4-mini, which passed at the time, is now caught hedging a fact.
+  - llama3.2:3b passes both.
+- **Security:**
+  - *Prompt injection:* the raw attacker line, how Lookout renders it in Discord, and an AI answer that obeyed it, with the validator's reasons for rejecting it.
+  - *Redaction:* fake example values before and after, with the rule that fired.
+  - *Read-only proxy:* the whole haproxy allowlist, plus the recorded `python -m tests.check_proxy --record` results (19/19, including POST → 403).
+
+  These examples are a static file built by the real code paths (`python -m lookout.dashboard.sample`), not an API response: the API scrubs everything, so it couldn't show a "before". The proxy proof is *recorded*, not run from the page, because a read-only dashboard has no business sending requests to Docker (a test checks the dashboard code never references the proxy).
+
 ## Usage
 
 ```bash
@@ -503,7 +518,7 @@ python3 -m venv .venv && .venv/bin/pip install pytest
 .venv/bin/pytest -q
 .venv/bin/python -m tests.record_prometheus_fixtures   # re-record Prometheus fixtures
 .venv/bin/python -m tests.scan_real_logs 24            # redaction check on real logs (counts only)
-.venv/bin/python -m tests.check_proxy                  # Docker proxy allows only list/logs/ping
+.venv/bin/python -m tests.check_proxy --record         # Docker proxy allowlist check (+ record for the Security page)
 .venv/bin/python -m bench.benchmark                    # model benchmark (pull the candidate models first)
 ```
 

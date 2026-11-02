@@ -1,0 +1,159 @@
+{
+ "verified_at": 1793592516.683854,
+ "passed": 19,
+ "total": 19,
+ "checks": [
+  {
+   "check": "allowed: ping",
+   "method": "GET",
+   "path": "/_ping",
+   "expected": 200,
+   "got": 200,
+   "ok": true
+  },
+  {
+   "check": "allowed: list containers",
+   "method": "GET",
+   "path": "/containers/json?all=1",
+   "expected": 200,
+   "got": 200,
+   "ok": true
+  },
+  {
+   "check": "allowed: list (versioned API)",
+   "method": "GET",
+   "path": "/v1.52/containers/json",
+   "expected": 200,
+   "got": 200,
+   "ok": true
+  },
+  {
+   "check": "allowed: logs",
+   "method": "GET",
+   "path": "/containers/<container>/logs?stdout=1&tail=1",
+   "expected": 200,
+   "got": 200,
+   "ok": true
+  },
+  {
+   "check": "blocked: inspect (env vars)",
+   "method": "GET",
+   "path": "/containers/lookout-check-does-not-exist/json",
+   "expected": 403,
+   "got": 403,
+   "ok": true
+  },
+  {
+   "check": "blocked: inspect (versioned)",
+   "method": "GET",
+   "path": "/v1.52/containers/lookout-check-does-not-exist/json",
+   "expected": 403,
+   "got": 403,
+   "ok": true
+  },
+  {
+   "check": "blocked: archive (copy files out)",
+   "method": "GET",
+   "path": "/containers/lookout-check-does-not-exist/archive?path=/",
+   "expected": 403,
+   "got": 403,
+   "ok": true
+  },
+  {
+   "check": "blocked: export (whole filesystem)",
+   "method": "GET",
+   "path": "/containers/lookout-check-does-not-exist/export",
+   "expected": 403,
+   "got": 403,
+   "ok": true
+  },
+  {
+   "check": "blocked: path trick",
+   "method": "GET",
+   "path": "/containers/lookout-check-does-not-exist/../json",
+   "expected": 403,
+   "got": 403,
+   "ok": true
+  },
+  {
+   "check": "blocked: follow logs forever",
+   "method": "GET",
+   "path": "/containers/<container>/logs?stdout=1&follow=1",
+   "expected": 403,
+   "got": 403,
+   "ok": true
+  },
+  {
+   "check": "blocked: restart",
+   "method": "POST",
+   "path": "/containers/lookout-check-does-not-exist/restart",
+   "expected": 403,
+   "got": 403,
+   "ok": true
+  },
+  {
+   "check": "blocked: create",
+   "method": "POST",
+   "path": "/containers/create",
+   "expected": 403,
+   "got": 403,
+   "ok": true
+  },
+  {
+   "check": "blocked: exec",
+   "method": "POST",
+   "path": "/containers/lookout-check-does-not-exist/exec",
+   "expected": 403,
+   "got": 403,
+   "ok": true
+  },
+  {
+   "check": "blocked: delete",
+   "method": "DELETE",
+   "path": "/containers/lookout-check-does-not-exist",
+   "expected": 403,
+   "got": 403,
+   "ok": true
+  },
+  {
+   "check": "blocked: images",
+   "method": "GET",
+   "path": "/images/json",
+   "expected": 403,
+   "got": 403,
+   "ok": true
+  },
+  {
+   "check": "blocked: system info",
+   "method": "GET",
+   "path": "/info",
+   "expected": 403,
+   "got": 403,
+   "ok": true
+  },
+  {
+   "check": "allowed: events (bounded)",
+   "method": "GET",
+   "path": "/events?since=1793592511&until=1793592516",
+   "expected": 200,
+   "got": 200,
+   "ok": true
+  },
+  {
+   "check": "blocked: events via POST",
+   "method": "POST",
+   "path": "/events",
+   "expected": 403,
+   "got": 403,
+   "ok": true
+  },
+  {
+   "check": "blocked: system events path trick",
+   "method": "GET",
+   "path": "/system/events",
+   "expected": 403,
+   "got": 403,
+   "ok": true
+  }
+ ]
+}

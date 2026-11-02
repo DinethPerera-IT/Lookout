@@ -58,6 +58,7 @@ def snapshot(facts, known_containers=None):
         for c in docker.get("containers", [])
         if c["state"] == "running" or known.get(c["name"], {}).get("was_running")]
     return {
+        "log_lines": sum((facts.get(n) or {}).get("total", 0) or 0 for n in ("journal", "docker")),
         "collectors": {name: bool((facts.get(name) or {}).get("ok"))
                        for name in ("host", "prometheus", "systemd", "journal", "docker")},
         "host": {

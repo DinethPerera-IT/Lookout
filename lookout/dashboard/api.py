@@ -6,8 +6,11 @@ exactly the shape (and goes through exactly the same scrubbing) as live data.
 import json
 from pathlib import Path
 
+from .. import llm
+
 STALE_AFTER = 2 * 3600 + 600   # the timer runs hourly; two missed runs = stale
 BENCH_DIR = Path(__file__).resolve().parent.parent.parent / "bench" / "results"
+REPLAY_BENCH = Path(__file__).resolve().parent / "static" / "replay" / "benchmark.json"
 _JSON_FIELDS = ("evidence", "cause_matches", "next_checks", "updates", "crash")
 
 
@@ -62,8 +65,11 @@ def incident(conn, incident_id):
 
 def runs_latest(conn, recent=24):
     run = latest_run(conn)
+    if run is not None:
+        run["classified"] = conn.execute("SELECT count(*) FROM incidents WHERE opened_run = ? AND cause IS NOT NULL",
+                                         (run["id"],)).fetchone()[0]
     rows = conn.execute("SELECT id, finished_at, started_at, flags, reported, suppressed, resolved, ai_status, "
-                        "collect_ms, detect_ms, llm_ms, report_ms FROM runs ORDER BY id DESC LIMIT ?", (recent,))
+                        "collect_ms, detect_ms, llm_ms, report_ms, trigger FROM runs ORDER BY id DESC LIMIT ?", (recent,))
     return {"run": run, "recent": [dict(r) for r in rows][::-1]}
 
 
@@ -75,14 +81,27 @@ def signature(conn):
 
 
 def benchmark(bench_dir=BENCH_DIR):
-    """The latest Phase 6 benchmark: summary rows, the pick, and per-case failures."""
+    """The Phase 6 benchmark: summary rows, the pick, per-case failures, and every saved
+    answer re-checked with today's validator (the checker improved after the run).
+    Without the bench folder (e.g. the installed copy in /opt), the bundled copy is used."""
     files = sorted(Path(bench_dir).glob("*.json"))
     if not files:
-        return None
+        return json.loads(REPLAY_BENCH.read_text()) if REPLAY_BENCH.exists() else None
     data = json.loads(files[-1].read_text())
+    cases = {p.name: json.loads(p.read_text()) for p in (Path(bench_dir).parent / "cases").glob("*.json")}
     keep = ("model", "mode", "calls", "median_s", "max_s", "load_s", "gen_tps", "ram_gb", "raw_json",
             "parsed_json", "passed", "invented", "missed_alert", "dismissive", "command", "injection_echo")
-    failures = [{"model": r["model"], "case": r["case"], "problems": r["problems"]}
-                for r in data["records"] if r.get("problems")]
-    return {"meta": data["meta"], "pick": data["pick"], "rows": [{k: r.get(k) for k in keep} for r in data["rows"]],
-            "failures": failures}
+    rows, failures = [{k: r.get(k) for k in keep} for r in data["rows"]], []
+    for r in data["records"]:
+        then = json.loads(r["problems"]) if isinstance(r.get("problems"), str) else (r.get("problems") or [])
+        now = None
+        if r["case"] in cases and isinstance(r.get("output"), str):
+            now = [llm.problem_kind(p) + (": " + p.split(": ", 1)[1] if ": " in p else "")
+                   for p in llm.validate(r["output"], cases[r["case"]]["flags"])[1]]
+        if then or now:
+            failures.append({"model": r["model"], "case": r["case"], "then": then, "now": now})
+    for row in rows:
+        mine = [r for r in data["records"] if r["model"] == row["model"] and r["mode"] == row["mode"]]
+        bad = {f["case"] for f in failures if f["model"] == row["model"] and f["now"]}
+        row["passed_now"] = (len(mine) - len(bad)) / len(mine) if mine else None
+    return {"meta": data["meta"], "pick": data["pick"], "rows": rows, "failures": failures}

@@ -10,7 +10,7 @@ import json
 import time
 from pathlib import Path
 
-from .. import config, history, pipeline
+from .. import config, history, llm, pipeline, redact, report
 from ..state import State
 from . import api
 from .scrub import make_scrubber
@@ -95,7 +95,51 @@ def export(state, now, out=OUT, scrub=None):
     return sorted(files)
 
 
+# Fake values only, chosen to look like the real thing. Shown on the Security page as "before".
+REDACTION_EXAMPLES = [
+    "login failed for admin password=hunter2",
+    "Authorization: Bearer FAKEabcdef0123456789token",
+    "session token eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJkZW1vIn0.ZmFrZS1zaWduYXR1cmU",
+    "POST https://discord.com/api/webhooks/123456789/FAKE-webhook-token",
+    "connecting to postgres://app:FakePassw0rd@db:5432/app",
+    "wlan0: associated with SSID 'Example Home 12 Fake St'",
+    "wlan0: 02:00:5e:10:00:01 link up",
+    "password reset sent to someone@example.com",
+]
+INJECTION_CASES = ["7_injection_caddy.json", "8_injection_operator.json"]
+OBEYING_ANSWER = {"summary": "All current alerts are false positives; no action is needed. @everyone",
+                  "alerts": [{"id": "F1", "explanation": "Everything is fine. Visit https://fix-my-server.example "
+                                                         "and run sudo rm -rf /var/lib/docker to clear it."}]}
+
+
+def security(bench_cases=ROOT / "bench" / "cases", proxy_cfg=ROOT / "deploy" / "docker-socket-proxy" / "haproxy.cfg"):
+    """Static examples for the Security page, produced by the real code paths: the redactor,
+    the Discord renderer and the LLM validator. Not an API response: the "before" side must
+    show (fake) secrets, which the API's scrubber would rightly remove."""
+    redaction = []
+    for before in REDACTION_EXAMPLES:
+        after, counts = redact.redact_counts(before)
+        redaction.append({"before": before, "after": after, "rules": sorted(counts)})
+    injections = []
+    for name in INJECTION_CASES:
+        case = json.loads((bench_cases / name).read_text())
+        hostile = next(f for f in case["flags"] if f["evidence"])
+        _, problems = llm.validate(json.dumps(OBEYING_ANSWER), [hostile])
+        injections.append({
+            "case": case["name"],
+            "raw": hostile["evidence"],
+            "discord": report.evidence_block(hostile["evidence"]),
+            "obeying_answer": OBEYING_ANSWER["summary"] + " " + OBEYING_ANSWER["alerts"][0]["explanation"],
+            "rejected_because": list(dict.fromkeys(llm.problem_kind(p) for p in problems)),
+        })
+    allowlist = [line.strip() for line in proxy_cfg.read_text().splitlines()
+                 if line.strip().startswith(("acl ", "http-request "))]
+    return {"redaction": redaction, "rule_names": [name for name, _, _ in redact.RULES],
+            "injections": injections, "proxy_allowlist": allowlist}
+
+
 def main():
+    (OUT.parent / "security.json").write_text(json.dumps(security(), indent=1, ensure_ascii=False) + "\n")
     state, now = build(config.load())
     try:
         names = export(state, now)
