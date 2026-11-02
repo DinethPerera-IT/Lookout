@@ -573,6 +573,7 @@ python3 -m lookout.dashboard            # dashboard on http://127.0.0.1:8088/ (a
 python3 -m lookout.dashboard.sample     # rebuild the bundled replay dataset (synthetic story)
 python3 -m lookout.dashboard.sample --from-db STATE.sqlite   # ... or from a recorded demo-lab run
 deploy/demo/demo.sh start|crash-oom|crash-db|crash-port|reset   # the demo lab
+deploy/lookoutctl.sh status|start|stop|restart|run|resolve|reset|test|latest|logs   # everyday control
 # Expo: DEMO.md · Caddy block (LAN/Tailscale only): deploy/caddy/lookout.caddy
 ```
 

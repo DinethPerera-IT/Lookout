@@ -54,6 +54,18 @@ Measured on this server (i5-4590, CPU-only, llama3.2:3b):
 
 If someone asks for "port in use": `deploy/demo/demo.sh crash-port` (an `EADDRINUSE` stack trace → `port_in_use`).
 
+## One command for everything: `deploy/lookoutctl.sh`
+
+| Command | Does |
+|---|---|
+| `deploy/lookoutctl.sh status` | services, demo containers, open incidents, last run |
+| `deploy/lookoutctl.sh start` / `stop` / `restart` | Lookout's timer, watcher and dashboard |
+| `deploy/lookoutctl.sh test` | live demo: crash OOM, DB, port one at a time, wait for detection + AI, then resolve (`test oom` for just one) |
+| `deploy/lookoutctl.sh resolve` | bring the demo containers back; their incidents resolve |
+| `deploy/lookoutctl.sh reset` | back up, then wipe the dashboard history (asks first) |
+| `deploy/lookoutctl.sh latest` | the latest incident: cause, time to detect, AI text |
+| `deploy/lookoutctl.sh logs` | follow Lookout live (Ctrl+C to stop) |
+
 ## Reset between visitors
 
 ```bash
