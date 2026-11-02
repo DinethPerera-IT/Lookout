@@ -445,6 +445,25 @@ browser ──GET──> lookout.dashboard (http.server) ──> api.py ──> 
 
 **Live run with the model on:** all three demo crashes were classified correctly, with time-to-detect 6–9 s. llama3.2:3b's explanations passed every check, and it picked checks only from the allowlist. That run also showed a templating weakness: random `vethXXXX` interface names (Docker removes them when a container dies) made every message "never seen before". They're now one template, `<iface>`.
 
+### Reacting in seconds
+
+**What is it?** Instead of waiting up to an hour for the timer, Lookout starts a run the moment something breaks, and records **time to detect** (detection time − failure time).
+
+**How does it work?**
+
+```
+docker die/oom/health ──> proxy GET /events ──> lookout-watch (debounce 3 s) ─┐
+systemd unit fails ──> OnFailure=lookout-investigate@<unit> ──────────────────┼─> one normal run
+hourly lookout.timer (safety net) ────────────────────────────────────────────┘   (file lock: one at a time)
+```
+
+- **Docker events** (`lookout/watch.py`, `lookout-watch.service`). The watcher follows `die`, `oom`, `health_status` and `start` through the read-only proxy. A burst (die + oom + network teardown) is debounced into **one** run. The event only adds facts: the exact failure time, the exit code and the OOM flag, passed as `--hints`. The run itself is the normal pipeline, with the same rules, dedup and report, so one crash = one incident. If the proxy cuts the stream, the watcher reconnects with `since=<last event>`, so nothing is missed. `start` events also trigger a run, so a recovery shows as *resolved* within seconds.
+- **The proxy change was minimal:** only `GET /events` was added to the allowlist. It shows names, images, labels, exit codes and times, but no environment variables. It was validated with `haproxy -c` before the restart, and `tests.check_proxy` now checks 19 rules, including `POST /events` → 403.
+- **systemd** (`lookout-investigate@.service` + a drop-in per unit, `deploy/install-onfailure.sh`): caddy, discordbot, docker and the three cloudflared units get `OnFailure=lookout-investigate@%n.service`. The drop-in only *adds* that line, and no unit needed restarting. Honest limit: units with `Restart=always/on-failure` are restarted by systemd first, so the hook fires only when systemd gives up (crash loop). A single crash that recovers is caught by the hourly timer.
+- **Facts first, AI afterwards.** A run sends the facts, commits state and sends the heartbeat *before* asking the model. The explanation is saved separately and **added by editing the same Discord message**. This fixed a real gap: before, a slow model (60–250 s on this CPU) delayed the alert itself. The dashboard shows the incident at once, with "AI: being written…".
+- **One run at a time.** A file lock in the state directory queues runs started by the timer, an event or a hook.
+- **Measured:** the demo DB container crashed at 03:59:31 and the incident was recorded **9.3 s** later: about 3 s of debounce plus about 6 s of collection. Before, detection could take up to 60 minutes.
+
 ## Usage
 
 ```bash
@@ -456,6 +475,7 @@ python3 -m lookout --env-file .env --fixture tests/fixtures/scenarios/discord_te
 python3 -m lookout --dry-run --stage collect   # just the collected facts
 python3 -m lookout --fixture tests/fixtures/scenarios/flapping.json   # replay a scenario
 echo 'password=hunter2' | python3 -m lookout.redact   # try the redactor
+python3 -m lookout.watch --env-file .env --shadow   # react to Docker events in seconds
 python3 -m lookout.dashboard            # dashboard on http://127.0.0.1:8088/ (add ?replay for demo data)
 python3 -m lookout.dashboard.sample     # rebuild the bundled replay dataset
 ```
