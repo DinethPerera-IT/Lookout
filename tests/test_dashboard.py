@@ -253,7 +253,9 @@ def test_frontend_never_injects_html():
 
 def test_frontend_works_offline_no_external_urls():
     for f in [*STATIC.glob("*.js"), *STATIC.glob("*.css"), *STATIC.glob("*.html")]:
-        assert not re.search(r"(?:https?:)?//[\w.-]+\.\w", f.read_text()), f"{f.name} references an external URL"
+        # SVG's fixed namespace identifies DOM elements; it makes no network request.
+        code = f.read_text().replace('"http://www.w3.org/2000/svg"', '"SVG_NAMESPACE"')
+        assert not re.search(r"(?:https?:)?//[\w.-]+\.\w", code), f"{f.name} references an external URL"
 
 
 # --- step 7 pages -------------------------------------------------------------

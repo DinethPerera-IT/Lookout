@@ -1,34 +1,106 @@
 <!doctype html>
 <html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="referrer" content="no-referrer">
-<title>Lookout</title>
-<link rel="icon" href="data:,">
-<link rel="stylesheet" href="style.css">
-</head>
-<body>
-<header class="topbar">
-  <a class="brand" href="#/"><span class="brand-mark" aria-hidden="true"></span>Lookout</a>
-  <nav class="tabs" id="tabs">
-    <a href="#/" data-route="overview">Overview</a>
-    <a href="#/how" data-route="how">How it works</a>
-    <a href="#/benchmark" data-route="benchmark">Model benchmark</a>
-    <a href="#/security" data-route="security">Security</a>
-  </nav>
-  <div class="topbar-right">
-    <span id="demo-badge" class="badge badge-demo" hidden title="Synthetic data bundled with the dashboard, not from a live system">DEMO DATA</span>
-    <span id="live-badge" class="badge badge-live" hidden>LIVE</span>
-    <span id="heartbeat" class="heartbeat"><span class="dot"></span><span class="hb-text">connecting…</span></span>
-  </div>
-</header>
-<main id="view" aria-live="polite"></main>
-<footer class="foot">
-  <span>Read-only · deterministic rules decide · the AI only explains</span>
-  <span id="clock" class="num"></span>
-</footer>
-<script src="data.js"></script>
-<script src="app.js"></script>
-</body>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="referrer" content="no-referrer" />
+    <meta name="theme-color" content="#090e17" />
+    <meta
+      name="description"
+      content="Lookout — infrastructure visibility, precise alerts and evidence-first incident analysis."
+    />
+    <title>Lookout · Infrastructure intelligence</title>
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#view">Skip to content</a>
+    <aside class="sidebar">
+      <a class="brand" href="#/" aria-label="Lookout overview"
+        ><span class="brand-mark" aria-hidden="true"></span
+        ><span
+          >lookout<span class="brand-caption"
+            >INFRASTRUCTURE INTELLIGENCE</span
+          ></span
+        ></a
+      >
+      <div class="workspace-label">
+        <span class="workspace-icon">L</span
+        ><span>Lookout workspace<small>Server monitoring</small></span
+        ><span class="workspace-dot"></span>
+      </div>
+      <div class="nav-label">WORKSPACE</div>
+      <nav class="tabs" id="tabs" aria-label="Main navigation">
+        <a href="#/" data-route="overview"
+          ><span class="nav-icon" data-icon="overview"></span>Overview<span class="nav-count" id="nav-count" hidden></span
+        ></a>
+        <a href="#/incidents" data-route="incidents"
+          ><span class="nav-icon" data-icon="clock"></span>Incident history</a
+        >
+        <div class="nav-label advanced-label">TECHNICAL INSIGHTS</div>
+        <a href="#/how" data-route="how"
+          ><span class="nav-icon" data-icon="pipeline"></span>How it works</a
+        >
+        <a href="#/benchmark" data-route="benchmark"
+          ><span class="nav-icon" data-icon="chart"></span>Model benchmark</a
+        >
+        <a href="#/security" data-route="security"
+          ><span class="nav-icon" data-icon="shield"></span>Security</a
+        >
+      </nav>
+      <div class="sidebar-bottom">
+        <div class="guard-icon" data-icon="shield"></div>
+        <strong>Visibility without risk.</strong>
+        <p>Read-only by design.<br />Facts first. AI second.</p>
+        <a href="#/security"
+          >Explore the safeguards <span aria-hidden="true">↗</span></a
+        >
+      </div>
+      <div class="sidebar-foot">
+        <span class="dot ok"></span> Lookout / local intelligence
+      </div>
+    </aside>
+    <div class="app-shell">
+      <header class="topbar">
+        <div class="breadcrumb">
+          Workspace <span>/</span>
+          <strong id="route-label">Overview</strong>
+        </div>
+        <div class="topbar-right">
+          <span
+            id="demo-badge"
+            class="badge badge-demo"
+            hidden
+            title="Recorded demo data, not a live system"
+            >DEMO DATA</span
+          >
+          <span id="live-badge" class="badge badge-live" hidden>LIVE</span>
+          <span id="heartbeat" class="heartbeat"
+            ><span class="dot"></span
+            ><span class="hb-text">connecting…</span></span
+          >
+          <button
+            id="refresh"
+            class="icon-button"
+            type="button"
+            title="Refresh data"
+            aria-label="Refresh data"
+          >
+            <span data-icon="refresh"></span>
+          </button>
+        </div>
+      </header>
+      <main id="view" tabindex="-1" aria-label="Dashboard content"></main>
+      <footer class="foot">
+        <span
+          ><span class="foot-mark" aria-hidden="true">◈</span> LOOKOUT
+          <span class="footer-note"
+            >· Deterministic detection. Local intelligence.</span
+          ></span
+        ><span id="clock" class="num"></span>
+      </footer>
+    </div>
+    <script src="data.js"></script>
+    <script src="app.js"></script>
+  </body>
 </html>
