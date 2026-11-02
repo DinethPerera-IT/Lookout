@@ -85,7 +85,11 @@ function cleanTitle(text) {
 
 // The service an incident is about, from its key ("container_down:grafana" -> "grafana").
 function affectedService(inc) {
-  const [kind, name] = String(inc.issue_key || "").split(":");
+  const parts = String(inc.issue_key || "").split(":");
+  const kind = parts[0];
+  // Log errors from a container are keyed by their source "docker:<name>"
+  // ("novel_error:docker:grafana:<hash>"): the service is the container, not Docker.
+  const name = parts[1] === "docker" && parts[2] ? parts[2] : parts[1];
   if (!name) return "The server itself";
   return kind === "disk" ? `Filesystem ${name}` : name;
 }

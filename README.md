@@ -4,8 +4,15 @@
 
 Lookout watches a homelab's logs, metrics, containers and services. When something breaks, it notices within seconds, works out **why** with deterministic rules, and shows the facts on a live, read-only dashboard. A small local LLM then adds a plain-English explanation, clearly labelled as an unverified hypothesis.
 
-![Lookout dashboard](docs/dashboard.png)
-<!-- Screenshot placeholder: add docs/dashboard.png (e.g. the offline demo below, Overview tab). -->
+<p align="center">
+  <img src="docs/dashboard.png" alt="Lookout dashboard: the overview on a laptop" width="100%">
+</p>
+<p align="center">
+  <img src="docs/mobile-overview.jpg" alt="The overview on a phone" width="32%">
+  &nbsp;&nbsp;
+  <img src="docs/mobile-priority.jpg" alt="The next priority with its labelled AI hypothesis, on a phone" width="32%">
+</p>
+<p align="center"><sub>Running on my homelab: the overview on a laptop, and the same dashboard on a phone over Tailscale, with the next priority and its labelled AI hypothesis.</sub></p>
 
 > **Design rule: code decides, the AI only explains.** Every alert, severity and cause comes from tested, deterministic rules. The model can add a labelled explanation. It can't suppress, downgrade, delay or change anything, and an answer that tries is dropped.
 
