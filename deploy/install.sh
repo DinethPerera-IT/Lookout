@@ -36,7 +36,11 @@ fi
 echo "code installed to $DEST ($(git -C "$REPO" rev-parse --short HEAD 2>/dev/null || echo unknown))"
 
 # 3. Unit files, checked before systemd sees them.
-systemd-analyze verify "$REPO/deploy/systemd/lookout.service" "$REPO/deploy/systemd/lookout.timer"
-install -m 644 -o root -g root "$REPO/deploy/systemd/lookout.service" "$REPO/deploy/systemd/lookout.timer" "$UNITS/"
+UNIT_FILES=(lookout.service lookout.timer lookout-watch.service lookout-investigate@.service)
+(cd "$REPO/deploy/systemd" && systemd-analyze verify lookout.service lookout.timer lookout-watch.service \
+                                                     lookout-investigate@caddy.service)
+for f in "${UNIT_FILES[@]}"; do
+  install -m 644 -o root -g root "$REPO/deploy/systemd/$f" "$UNITS/"
+done
 systemctl daemon-reload
 echo "units installed. Nothing was started. Next steps: README.md, Phase 8."

@@ -7,6 +7,7 @@ the proxy's 403, and the check fails loudly. Response bodies are never printed.
 """
 import json
 import sys
+import time
 import urllib.error
 import urllib.request
 
@@ -46,7 +47,10 @@ def main():
         ("blocked: delete", "DELETE", f"/containers/{FAKE}", 403),
         ("blocked: images", "GET", "/images/json", 403),
         ("blocked: system info", "GET", "/info", 403),
-        ("blocked: events", "GET", "/events", 403),
+        # until= makes the stream end at once instead of following forever
+        ("allowed: events (bounded)", "GET", f"/events?since={int(time.time()) - 5}&until={int(time.time())}", 200),
+        ("blocked: events via POST", "POST", "/events", 403),
+        ("blocked: system events path trick", "GET", "/system/events", 403),
     ]
     failures = 0
     for name, method, path, expected in checks:

@@ -1,0 +1,58 @@
+# Lookout: follow Docker container events (die, oom, health) and start a run within
+# seconds. Long-running; reads events through the read-only proxy on 127.0.0.1:2375.
+# The hourly lookout.timer keeps running as the safety net.
+[Unit]
+Description=Lookout: react to Docker events in seconds (read-only)
+Documentation=https://github.com/DinethPerera-IT
+Wants=network-online.target
+After=network-online.target docker.service
+
+[Service]
+Type=simple
+User=lookout
+Group=lookout
+SupplementaryGroups=systemd-journal
+WorkingDirectory=/opt/lookout
+Environment=PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
+EnvironmentFile=/home/<user>/ops-summary/.env
+# SHADOW MODE: remove --shadow to go live (same as lookout.service)
+ExecStart=/usr/bin/python3 -m lookout.watch --shadow
+Restart=always
+RestartSec=10
+StateDirectory=lookout
+StateDirectoryMode=0700
+UMask=0077
+Nice=10
+IOSchedulingClass=idle
+MemoryMax=768M
+
+# --- Sandboxing: enforced by the kernel, not by trusting Lookout's code ---
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+ProtectProc=invisible
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+RemoveIPC=yes
+# Unix sockets (systemctl, journal) and TCP/IP (localhost services + Discord). Nothing else.
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged @resources
+SystemCallErrorNumber=EPERM
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,57 @@
+# Lookout: investigate a unit failure right away. Started by OnFailure= of watched units
+# (drop-in deploy/systemd/onfailure.conf, installed by deploy/install-onfailure.sh), with
+# %i = the failed unit. It's a normal Lookout run (same rules, dedup and report); the
+# run lock queues it behind any run already in progress.
+[Unit]
+Description=Lookout: investigate the failure of %i
+Documentation=https://github.com/DinethPerera-IT
+After=network-online.target
+# A unit stuck in a crash loop must not start investigations forever
+StartLimitIntervalSec=600
+StartLimitBurst=5
+
+[Service]
+Type=oneshot
+User=lookout
+Group=lookout
+SupplementaryGroups=systemd-journal
+WorkingDirectory=/opt/lookout
+Environment=PYTHONDONTWRITEBYTECODE=1
+EnvironmentFile=/home/<user>/ops-summary/.env
+# SHADOW MODE: remove --shadow to go live (same as lookout.service)
+ExecStart=/usr/bin/python3 -m lookout --shadow "--trigger=systemd OnFailure %i"
+StateDirectory=lookout
+StateDirectoryMode=0700
+UMask=0077
+TimeoutStartSec=15min
+Nice=10
+IOSchedulingClass=idle
+MemoryMax=768M
+
+# --- Sandboxing: enforced by the kernel, not by trusting Lookout's code ---
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+ProtectProc=invisible
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+RemoveIPC=yes
+# Unix sockets (systemctl, journal) and TCP/IP (localhost services + Discord). Nothing else.
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged @resources
+SystemCallErrorNumber=EPERM
