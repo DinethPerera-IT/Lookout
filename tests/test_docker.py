@@ -103,3 +103,30 @@ def test_unreachable_proxy(cfg):
     cfg["docker"]["proxy_url"] = "http://127.0.0.1:1"
     with pytest.raises(CollectorError, match="unreachable"):
         docker.collect(cfg)
+
+
+GRAFANA_STOP_START = [  # exactly as logged when Grafana was stopped and started on this server
+    't=2026-11-02T06:56:13.32493289Z level=error caller=logger.go:234 time=2026-11-02T06:56:13.324920449Z msg="job cleanup controller failed" error="context canceled"',
+    'logger=plugin.backgroundinstaller t=2026-11-02T06:58:13.890503146Z level=error msg="Failed to install plugin" pluginId=elasticsearch version= error="unlinkat /usr/share/grafana/data/plugins-bundled/elasticsearch/LICENSE: permission denied"',
+    'logger=plugin.backgroundinstaller t=2026-11-02T06:58:13.9Z level=error msg="Failed to install plugin" pluginId=zipkin version= error="unlinkat /usr/share/grafana/data/plugins-bundled/zipkin/LICENSE: permission denied"',
+]
+
+
+def test_grafana_stop_start_lines_are_known_noise(cfg):
+    from lookout.logstats import LogStats
+    errors = docker.error_patterns(cfg)
+    stats = LogStats(docker.noise_patterns(cfg))
+    for line in GRAFANA_STOP_START:
+        assert any(p.search(line) for p in errors)          # they really are error lines...
+        stats.add("docker:grafana", line, True)
+    assert stats.result()["by_source"]["docker:grafana"] == {"total": 3, "errors": 0, "noise": 3}   # ...but known
+
+
+def test_other_grafana_errors_are_still_errors(cfg):
+    from lookout.logstats import LogStats
+    stats = LogStats(docker.noise_patterns(cfg))
+    for line in ['level=error msg="job cleanup controller failed" error="database is locked"',
+                 'logger=plugin.backgroundinstaller level=error msg="Failed to install plugin" pluginId=x error="no space left on device"',
+                 'logger=sqlstore level=error msg="Failed to install plugin" error="permission denied"']:
+        stats.add("docker:grafana", line, True)
+    assert stats.result()["by_source"]["docker:grafana"]["errors"] == 3

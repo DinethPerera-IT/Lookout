@@ -1,5 +1,6 @@
 """Recent changes before a failure: apt history, container (re)creation, config file times."""
 import time
+from pathlib import Path
 from types import SimpleNamespace
 
 from lookout import changes, crash
@@ -38,9 +39,13 @@ def test_unreadable_apt_log_is_no_changes(tmp_path):
     assert changes.apt_changes(0, 2e9, tmp_path / "missing.log") == []
 
 
-def test_recent_combines_sources_newest_first_with_code_written_summaries(tmp_path):
+def test_recent_keeps_only_changes_that_can_affect_the_unit(tmp_path):
     log = tmp_path / "history.log"
-    log.write_text(APT)
+    log.write_text(APT + """
+Start-Date: 2026-11-01  08:00:00
+Upgrade: caddy:amd64 (2.10.0, 2.10.2)
+End-Date: 2026-11-01  08:00:05
+""")
     failed = local("2026-11-01 09:30:00")
     mtimes = {"/etc/systemd/system/caddy.service.d/override.conf": failed - 120,
               "/etc/systemd/system/caddy.service.d/lookout-onfailure.conf": failed - 60,   # Lookout's own hook
@@ -48,11 +53,56 @@ def test_recent_combines_sources_newest_first_with_code_written_summaries(tmp_pa
     ev = {"failed_at": failed, "target": {"kind": "unit", "name": "caddy.service",
                                           "fragment_path": "/usr/lib/systemd/system/caddy.service",
                                           "drop_ins": list(mtimes)[:2]}}
-    found = changes.recent({}, ev, failed + 30, apt_log=log, stat=lambda p: SimpleNamespace(st_mtime=mtimes[p]))
+    found = changes.recent({}, ev, failed + 30, apt_log=log, stat=lambda p: SimpleNamespace(st_mtime=mtimes[p]),
+                           owner=lambda path: "caddy")
     assert [c["summary"] for c in found] == [
         "/etc/systemd/system/caddy.service.d/override.conf was modified, 2 min before the failure",
-        "apt: installed 1 package (docker-ce); removed 1 package (old-thing), 30 min before the failure",
-        "apt: upgraded 4 packages (netdata-plugin-apps, netdata-plugin-nfacct, netdata, +1 more), 2 h before the failure"]
+        "apt: upgraded 1 package (caddy), 2 h before the failure"]   # netdata/docker-ce upgrades: not caddy's
+
+
+def test_apt_counts_for_a_container_only_when_docker_itself_changed(tmp_path):
+    log = tmp_path / "history.log"
+    log.write_text(APT)
+    failed = local("2026-11-01 09:30:00")
+    ev = {"failed_at": failed, "target": {"kind": "container", "name": "grafana", "created": failed - 30 * 86400}}
+    found = changes.recent({}, ev, failed + 5, apt_log=log)
+    assert [c["what"] for c in found] == ["apt: installed 1 package (docker-ce); removed 1 package (old-thing)"]
+
+
+def test_units_no_package_owns_never_blame_apt(tmp_path):
+    log = tmp_path / "history.log"
+    log.write_text(APT)
+    ev = {"failed_at": local("2026-11-01 09:30:00"),
+          "target": {"kind": "unit", "name": "discordbot.service", "fragment_path": "/etc/systemd/system/discordbot.service"}}
+    assert changes.recent({}, ev, ev["failed_at"], apt_log=log, stat=lambda p: SimpleNamespace(st_mtime=0),
+                          owner=lambda path: None) == []
+
+
+def test_a_planned_stop_after_an_unrelated_apt_install_is_not_blamed_on_it(tmp_path):
+    """Seen live: `docker stop grafana` 2 h after `apt install gh` was classified after_recent_change."""
+    log = tmp_path / "history.log"
+    log.write_text("Start-Date: 2026-11-02  04:50:00\nCommandline: apt install gh\nInstall: gh:amd64 (2.46.0-4)\n"
+                   "End-Date: 2026-11-02  04:50:09\n")
+    failed = local("2026-11-02 06:56:13")
+    ev = {"failed_at": failed, "exit_code": 0, "kernel_oom": [], "host": {},
+          "log_lines": ['level=info msg="All modules stopped"'],
+          "target": {"kind": "container", "name": "grafana", "image": "grafana/grafana", "created": failed - 13 * 86400}}
+    ev["recent_changes"] = changes.recent({}, ev, failed + 10, apt_log=log)
+    assert ev["recent_changes"] == []
+    cause, matches = crash.classify(ev)
+    assert cause == "unknown"
+    assert matches[-1] == {"signal": "exit code 0", "detail": crash.EXIT_MEANING[0]}
+
+
+def test_dpkg_owner_on_a_real_and_a_missing_file():
+    import shutil
+    if not shutil.which("dpkg"):
+        return
+    assert changes.dpkg_owner("/usr/bin/dpkg") == "dpkg"
+    if Path("/lib/systemd/system/caddy.service").exists():          # merged /usr: systemd says /usr/lib
+        assert changes.dpkg_owner("/usr/lib/systemd/system/caddy.service") == "caddy"
+    assert changes.dpkg_owner("/nonexistent/lookout-test.service") is None
+    assert changes.dpkg_owner(None) is None
 
 
 def test_hidden_or_missing_files_are_skipped():

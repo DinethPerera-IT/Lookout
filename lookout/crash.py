@@ -112,9 +112,18 @@ def classify(ev, disk_crit_pct=95):
                                  ev, "unknown")
 
 
+EXIT_MEANING = {
+    0: "a clean exit: it was stopped on purpose (e.g. docker stop) or shut itself down normally",
+    143: "128 + 15: stopped with SIGTERM, which is what docker stop and systemctl stop send",
+    137: "128 + 9: killed with SIGKILL (docker kill, or a stop that timed out), with no sign of the OOM killer",
+}
+
+
 def _with_exit(matches, ev, cause):
-    if ev.get("exit_code") is not None and not (cause == "out_of_memory" and ev["exit_code"] == 137):
-        matches = matches + [{"signal": f"exit code {ev['exit_code']}", "detail": "from the container/unit state"}]
+    code = ev.get("exit_code")
+    if code is not None and not (cause == "out_of_memory" and code == 137):
+        matches = matches + [{"signal": f"exit code {code}",
+                              "detail": EXIT_MEANING.get(code, "from the container/unit state")}]
     return matches
 
 

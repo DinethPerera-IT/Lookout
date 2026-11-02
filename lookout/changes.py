@@ -10,10 +10,14 @@ proxy blocks, so a container's (re)creation time stands in for it. Files under /
 (compose files) are invisible to the sandboxed service (ProtectHome) and are skipped.
 """
 import os
+import subprocess
 import time
 from datetime import datetime
 
 APT_LOG = "/var/log/apt/history.log"
+# A container can only be affected by its own changes, or by Docker itself being upgraded.
+DOCKER_PACKAGES = {"docker-ce", "docker-ce-cli", "docker.io", "containerd", "containerd.io", "runc",
+                   "docker-compose-plugin", "docker-buildx-plugin", "moby-engine"}
 WINDOW = 24 * 3600          # look this far back before the failure
 OWN_FILES = ("lookout-onfailure.conf",)   # Lookout's own hook isn't a change to the service
 MAX_NAMES = 3
@@ -68,7 +72,9 @@ def apt_changes(since, until, path=APT_LOG):
                 more = f", +{len(pkgs) - MAX_NAMES} more" if len(pkgs) > MAX_NAMES else ""
                 actions.append(f"{verb} {len(pkgs)} package{'s' * (len(pkgs) != 1)} ({', '.join(pkgs[:MAX_NAMES])}{more})")
         if actions:
-            changes.append({"at": at, "kind": "apt", "what": "apt: " + "; ".join(actions)})
+            touched = [p for key in ("Upgrade", "Install", "Remove", "Purge") if key in fields
+                       for p in _packages(fields[key])]
+            changes.append({"at": at, "kind": "apt", "what": "apt: " + "; ".join(actions), "packages": touched})
     return changes
 
 
@@ -94,14 +100,42 @@ def file_changes(paths, since, until, stat=os.stat):
     return changes
 
 
-def recent(cfg, evidence, now, apt_log=APT_LOG, stat=os.stat):
-    """Changes in the WINDOW before the failure, newest first, each with a code-written summary."""
+def dpkg_owner(path):
+    """The package that installed a file (`dpkg -S`), or None for files no package owns."""
+    if not path:
+        return None
+    # Packages record unit files under /lib, but systemd reports /usr/lib (merged /usr): try both.
+    for candidate in dict.fromkeys([path, path.removeprefix("/usr") if path.startswith("/usr/lib/") else path]):
+        try:
+            out = subprocess.run(["dpkg", "-S", candidate], capture_output=True, text=True, timeout=10,
+                                 check=False).stdout
+        except (OSError, subprocess.TimeoutExpired):
+            return None
+        if ":" in out:
+            return out.split(":")[0].strip() or None
+    return None
+
+
+def relevant_apt(change, target, owner):
+    """An apt run only counts if it touched something this target depends on: for a container,
+    Docker itself; for a unit, the package that installed the unit. `apt install gh` two hours
+    before a planned Grafana stop is not a cause (seen live)."""
+    packages = set(change.get("packages", []))
+    if target.get("kind") == "container":
+        return bool(packages & DOCKER_PACKAGES)
+    package = owner(target.get("fragment_path"))
+    return package is not None and package in packages
+
+
+def recent(cfg, evidence, now, apt_log=APT_LOG, stat=os.stat, owner=dpkg_owner):
+    """Changes in the WINDOW before the failure that can affect this target, newest first,
+    each with a code-written summary."""
     until = evidence.get("failed_at") or now
     since = until - WINDOW
     target = evidence.get("target") or {}
     paths = [target.get("fragment_path"), *target.get("drop_ins", []), *target.get("compose_files", [])]
-    found = (apt_changes(since, until, apt_log) + container_changes(target, since, until)
-             + file_changes(paths, since, until, stat))
+    apt = [c for c in apt_changes(since, until, apt_log) if relevant_apt(c, target, owner)]
+    found = apt + container_changes(target, since, until) + file_changes(paths, since, until, stat)
     for c in found:
         c["summary"] = f"{c['what']}, {ago_text(until - c['at'])} before the failure"
     return sorted(found, key=lambda c: -c["at"])

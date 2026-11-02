@@ -74,7 +74,11 @@ proxy_url = "http://127.0.0.1:2375"
 timeout_seconds = 30
 max_log_bytes = 20000000       # per container per request
 ignore = []                    # container names never flagged (e.g. ones you stop on purpose)
-known_noise = []               # same format as [[journal.known_noise]]
+# Same format as [[journal.known_noise]]: a regex on the (redacted) log line, plus why it's harmless.
+known_noise = [
+  { pattern = 'msg="job cleanup controller failed" error="context canceled"', reason = "Grafana logs this at error level on every clean shutdown: stopping cancels its background jobs" },
+  { pattern = 'logger=plugin\.backgroundinstaller .*msg="Failed to install plugin" .*plugins-bundled/\w+/LICENSE: permission denied', reason = "On every start Grafana tries to update its bundled plugins (elasticsearch, zipkin) and can't write inside its own image; Grafana still works" },
+]
 # Container logs have no syslog priority, so a line counts as an error if it
 # matches one of these. Calibrated on 14 days of this server's container logs.
 error_patterns = [
