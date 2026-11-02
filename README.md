@@ -2,7 +2,28 @@
 
 *Keeps watch over my homelab and raises its hand when something looks off.*
 
-Lookout watches my homelab's logs, metrics, containers and services. When something breaks, it notices within seconds, works out **why** with deterministic rules, and reports the facts. A small **local** LLM then adds a plain-English explanation, clearly labelled as an unverified hypothesis. A read-only dashboard shows it all live.
+Lookout watches a homelab's logs, metrics, containers and services. When something breaks, it notices within seconds, works out **why** with deterministic rules, and shows the facts on a live, read-only dashboard. A small local LLM then adds a plain-English explanation, clearly labelled as an unverified hypothesis.
+
+![Lookout dashboard](docs/dashboard.png)
+<!-- Screenshot placeholder: add docs/dashboard.png (e.g. the offline demo below, Overview tab). -->
+
+> **Design rule: code decides, the AI only explains.** Every alert, severity and cause comes from tested, deterministic rules. The model can add a labelled explanation. It can't suppress, downgrade, delay or change anything, and an answer that tries is dropped.
+
+## Try it: the offline demo (no server needed)
+
+The dashboard ships with a recorded, scrubbed dataset from real demo-lab runs. With no backend, it switches to that data automatically and shows a **DEMO DATA** badge.
+
+```bash
+git clone https://github.com/DinethPerera-IT/lookout.git
+cd lookout/lookout/dashboard/static
+python3 -m http.server 8000        # then open http://localhost:8000
+```
+
+Nothing is fetched from the internet: no CDN, no build step.
+
+## How it was built
+
+I designed Lookout, set its rules (above all: code decides, the AI only explains), and reviewed and tested every phase before it was committed. The build log below records each phase: what was built, how it was tested, and what went wrong along the way.
 
 > Status: v1 complete (phases 1–8) plus the expo build: crash evidence, cause classification, reacting in seconds, recent changes and the dashboard. Installed as systemd units in **shadow mode**. Demo script: [`DEMO.md`](DEMO.md).
 
@@ -66,7 +87,7 @@ Each collector returns `{"ok": true, ...}` or `{"ok": false, "error": "..."}`. A
 ```
 login password=hunter2                    →  login password=<redacted>
 Authorization: Bearer abc123…             →  Authorization: <redacted>
-postgres://app:pa55@db/hr                 →  postgres://<redacted>@db/hr
+postgres://app:pa55@db/app                →  postgres://<redacted>@db/app
 Trying to associate with aa:bb:… (SSID='…') → Trying to associate with <mac> (SSID=<ssid>)
 ```
 
@@ -543,7 +564,6 @@ python3 -m venv .venv && .venv/bin/pip install pytest
 .venv/bin/python -m tests.check_proxy --record         # Docker proxy allowlist check (+ record for the Security page)
 .venv/bin/python -m bench.benchmark                    # model benchmark (pull the candidate models first)
 ```
-
 
 
 ## Secrets

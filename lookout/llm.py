@@ -71,7 +71,7 @@ INJECTION_ECHO = re.compile(r"(?i)(https?://|www\.|@everyone|@here|<@|\]\(|ignor
 HOST_ENTITIES = [
     "caddy", "cloudflared", "tailscale", "tailscaled", "pihole", "pi-hole", "unbound", "netdata", "ollama",
     "grafana", "prometheus", "node-exporter", "uptime-kuma", "kuma", "portainer", "homepage", "open-webui",
-    "aotearoa", "commoncents", "private-app", "postgres", "postgresql", "discordbot", "docker", "containerd",
+    "aotearoa", "commoncents", "postgres", "postgresql", "discordbot", "docker", "containerd",
     "sshd", "cron", "netplan", "wpa_supplicant", "systemd-networkd", "nginx", "apache", "mysql", "redis",
 ]
 

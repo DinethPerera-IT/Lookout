@@ -24,6 +24,7 @@ fi
 # 2. Code: replace /opt/lookout atomically with a fresh copy (package + config only).
 tmp="$(mktemp -d /opt/.lookout-new.XXXXXX)"
 cp -r "$REPO/lookout" "$REPO/config.toml" "$tmp/"
+[[ -f "$REPO/config.local.toml" ]] && cp "$REPO/config.local.toml" "$tmp/"   # machine-specific settings
 find "$tmp" -name __pycache__ -prune -exec rm -rf {} +
 /usr/bin/python3 -m compileall -q "$tmp/lookout"   # the service itself can't write bytecode
 chown -R root:root "$tmp"
@@ -36,11 +37,21 @@ fi
 echo "code installed to $DEST ($(git -C "$REPO" rev-parse --short HEAD 2>/dev/null || echo unknown))"
 
 # 3. Unit files, checked before systemd sees them.
+# Units are templates: @ENV_FILE@ becomes the secrets file (read by systemd as root).
+ENV_FILE="${LOOKOUT_ENV_FILE:-$REPO/.env}"
+[[ "$ENV_FILE" = /* && "$ENV_FILE" != *[[:space:]]* ]] || { echo "LOOKOUT_ENV_FILE must be an absolute path" >&2; exit 1; }
+[[ -f "$ENV_FILE" ]] || echo "note: $ENV_FILE doesn't exist yet; create it before starting the services"
 UNIT_FILES=(lookout.service lookout.timer lookout-watch.service lookout-investigate@.service lookout-dashboard.service)
-(cd "$REPO/deploy/systemd" && systemd-analyze verify lookout.service lookout.timer lookout-watch.service \
-                                                     lookout-investigate@caddy.service lookout-dashboard.service)
+rendered="$(mktemp -d)"
 for f in "${UNIT_FILES[@]}"; do
-  install -m 644 -o root -g root "$REPO/deploy/systemd/$f" "$UNITS/"
+  sed "s|@ENV_FILE@|$ENV_FILE|g" "$REPO/deploy/systemd/$f" > "$rendered/$f"
 done
+cp "$rendered/lookout-investigate@.service" "$rendered/lookout-investigate@caddy.service"   # an instance, for verify
+(cd "$rendered" && systemd-analyze verify lookout.service lookout.timer lookout-watch.service \
+                                          lookout-investigate@caddy.service lookout-dashboard.service)
+for f in "${UNIT_FILES[@]}"; do
+  install -m 644 -o root -g root "$rendered/$f" "$UNITS/"
+done
+rm -rf "$rendered"
 systemctl daemon-reload
 echo "units installed. Nothing was started. Next steps: README.md, Phase 8."

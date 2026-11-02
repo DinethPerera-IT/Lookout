@@ -25,10 +25,10 @@ Measured on this server (i5-4590, CPU-only, llama3.2:3b):
    ```
    The first run on a fresh state reports whatever is currently unusual on the host (with the model on, that can take a few minutes). Do this well before visitors arrive.
 4. **Faster AI on the day:** in `config.toml`, uncomment `keep_alive = "30m"` under `[llm]`, then `sudo deploy/install.sh` again (it re-copies the code and config). This keeps the model loaded between demos.
-5. **Optional, hide containers from the public screen:** `[dashboard] hide_containers` is set to the private app containers (detection is unaffected); change it in `config.toml`, then `sudo deploy/install.sh`.
+5. **Optional, hide containers from the public screen:** put their names in `config.local.toml` (gitignored; see `config.local.toml.example`) as `[dashboard] hide_containers = [...]` (detection is unaffected), then `sudo deploy/install.sh`.
 6. **Reach the dashboard:**
-   - **Caddy** (LAN/Tailscale only): add `deploy/caddy/lookout.caddy` to `/etc/caddy/Caddyfile` (back it up first as `Caddyfile.bak-<date>`), run `caddy validate --config /etc/caddy/Caddyfile`, then `sudo systemctl reload caddy`, and add a Pi-hole local DNS record `lookout.home.internal` → the server. **Never** add it to the Cloudflare tunnel.
-   - **Or an SSH tunnel from the laptop** (no Caddy needed): `ssh -L 8088:127.0.0.1:8088 <user>@<server>`, then open http://localhost:8088
+   - **Caddy** (LAN/Tailscale only): add `deploy/caddy/lookout.caddy` to `/etc/caddy/Caddyfile` (back it up first as `Caddyfile.bak-<date>`), run `caddy validate --config /etc/caddy/Caddyfile`, then `sudo systemctl reload caddy`, and add a local DNS record (e.g. Pi-hole) `lookout.home.internal` → the server (use your own local domain). **Never** add it to the Cloudflare tunnel.
+   - **Or an SSH tunnel from the laptop** (no Caddy needed): `ssh -L 8088:127.0.0.1:8088 <user>@<server>` (`<server>`: the server's Tailscale name or IP), then open http://localhost:8088
 7. **Lab ready:** `deploy/demo/demo.sh start` (or `reset`), then `deploy/demo/demo.sh status`, which should show 3× running.
 8. **Warm-up crash** before visitors arrive: `deploy/demo/demo.sh crash-oom`. Wait about 70 s, check the incident page has its AI explanation, then `deploy/demo/demo.sh reset`.
 9. **Screens:**
@@ -98,7 +98,7 @@ git checkout master && sudo deploy/install.sh && sudo systemctl restart lookout-
 Note: `demo-0` to `demo-4` predate the watcher, and `demo-0` predates the dashboard, so the further back you go, the less there is to show.
 
 ## After the expo
-- Set `keep_alive` back (comment it out), remove `hide_containers` if wanted, then `sudo deploy/install.sh`.
+- Set `keep_alive` back (comment it out), adjust `config.local.toml` if wanted, then `sudo deploy/install.sh`.
 - `deploy/demo/demo.sh remove` deletes the lab (Lookout reports the containers as gone, once).
 - Shadow mode continues: log each report in `docs/SHADOW_LOG.md` for two weeks before going live (ROADMAP exit criteria).
 - Update the homelab notes and push the GitHub repo.

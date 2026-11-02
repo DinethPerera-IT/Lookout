@@ -1,0 +1,6 @@
+# Copy to config.local.toml (gitignored) for settings that are specific to your machine.
+# It is read on top of config.toml: tables merge, other values replace.
+
+[dashboard]
+# Containers you'd rather not show on the dashboard (detection is unaffected).
+hide_containers = ["some-private-app"]

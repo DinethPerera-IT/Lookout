@@ -4,12 +4,30 @@ import tomllib
 from pathlib import Path
 
 DEFAULT_CONFIG = Path(__file__).resolve().parent.parent / "config.toml"
+LOCAL_NAME = "config.local.toml"   # next to config.toml, gitignored: settings specific to one machine
 SECRETS = ("DISCORD_WEBHOOK_URL", "KUMA_PUSH_URL")
 
 
 def load(path=None):
-    with open(path or DEFAULT_CONFIG, "rb") as f:
-        return tomllib.load(f)
+    """config.toml, with config.local.toml (same folder, if present) layered on top."""
+    path = Path(path or DEFAULT_CONFIG)
+    with open(path, "rb") as f:
+        cfg = tomllib.load(f)
+    local = path.with_name(LOCAL_NAME)
+    if local.exists():
+        with open(local, "rb") as f:
+            merge(cfg, tomllib.load(f))
+    return cfg
+
+
+def merge(base, override):
+    """Tables merge key by key; any other value (including lists) replaces the base value."""
+    for key, value in override.items():
+        if isinstance(value, dict) and isinstance(base.get(key), dict):
+            merge(base[key], value)
+        else:
+            base[key] = value
+    return base
 
 
 def load_env_file(path):

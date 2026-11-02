@@ -17,7 +17,8 @@ Group=lookout
 SupplementaryGroups=systemd-journal
 WorkingDirectory=/opt/lookout
 Environment=PYTHONDONTWRITEBYTECODE=1
-EnvironmentFile=/home/<user>/ops-summary/.env
+# The path below is filled in by deploy/install.sh (default: <repo>/.env; override with LOOKOUT_ENV_FILE=...)
+EnvironmentFile=@ENV_FILE@
 # SHADOW MODE: remove --shadow to go live (same as lookout.service)
 ExecStart=/usr/bin/python3 -m lookout --shadow "--trigger=systemd OnFailure %i"
 StateDirectory=lookout

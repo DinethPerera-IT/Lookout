@@ -51,9 +51,9 @@ def test_redacts(raw, expected):
     "Started Daily apt download activities.",
     "RTW: send eapol packet 4/4",
     "Timeout occurred while waiting for network connectivity.",
-    "sudo: alice : TTY=pts/1 ; PWD=/home/<user>/ops-summary ; USER=root",
+    "sudo: alice : TTY=pts/1 ; PWD=/home/alice/ops-summary ; USER=root",
     "Failed password for invalid user admin from 203.0.113.7 port 51234 ssh2",
-    "ExecStart=/home/<user>/discord-bot-main/venv/bin/python bot.py",
+    "ExecStart=/home/alice/discord-bot-main/venv/bin/python bot.py",
     "container 3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b restarted",
     "level=info msg=\"Request completed\" status=200 duration=12ms",
 ])

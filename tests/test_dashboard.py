@@ -293,11 +293,11 @@ def test_hidden_containers_stay_off_the_grid_but_nothing_else_changes(tmp_path):
     db = tmp_path / "state.sqlite"
     s = State(db)
     history.record(s.conn, started_at=1, finished_at=2, mode="live", timings={}, result=result(), ai=None,
-                   delivered=False, snapshot={"containers": [{"name": "private-app-db", "state": "running"},
+                   delivered=False, snapshot={"containers": [{"name": "private-app", "state": "running"},
                                                               {"name": "grafana", "state": "running"}]})
     s.commit()
     s.close()
-    srv = make_server(db, "127.0.0.1", 0, hide_containers=["private-app-db"])
+    srv = make_server(db, "127.0.0.1", 0, hide_containers=["private-app"])
     threading.Thread(target=srv.serve_forever, daemon=True).start()
     try:
         bodies = {path: get(srv, path)[2].decode() for path in ENDPOINTS[:5]}
@@ -305,7 +305,7 @@ def test_hidden_containers_stay_off_the_grid_but_nothing_else_changes(tmp_path):
         srv.shutdown()
         srv.server_close()
     for path, body in bodies.items():
-        assert "private-app-db" not in body, path               # on every endpoint, not just the grid
+        assert "private-app" not in body, path               # on every endpoint, not just the grid
     assert "grafana" in bodies["/api/status"]
 
 
