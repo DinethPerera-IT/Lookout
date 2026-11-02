@@ -29,7 +29,7 @@
     system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, "Helvetica Neue",
     Arial, sans-serif;
   /* Readable from 2 m: the whole UI scales with the screen, from laptop to TV */
-  font-size: clamp(14px, 0.45vw + 8.5px, 24px);
+  font-size: clamp(15px, 0.5vw + 8px, 26px);   /* readable from a laptop to a TV */
 }
 
 * {
@@ -122,7 +122,7 @@ h3 {
 }
 
 .badge {
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.06em;
   padding: 0.2rem 0.55rem;
@@ -720,7 +720,7 @@ dl.facts dd {
   font-weight: 600;
 }
 .stage-who {
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--muted);
@@ -919,7 +919,7 @@ table.data th.r {
   --accent: #6de2d0;
   --radius: 12px;
   --gap: 20px;
-  font-size: 14px;
+  font-size: 1rem;
 }
 body {
   display: block;
@@ -990,14 +990,14 @@ input:focus-visible,
 .brand {
   gap: 12px;
   padding: 0 10px;
-  font-size: 29px;
+  font-size: 1.933rem;
   font-weight: 650;
   letter-spacing: -1.2px;
   line-height: 1.1;
 }
 .brand-caption {
   display: block;
-  font-size: 7px;
+  font-size: 0.75rem;
   letter-spacing: 1.45px;
   font-weight: 600;
   margin-top: 10px;
@@ -1029,13 +1029,13 @@ input:focus-visible,
   align-items: center;
   gap: 10px;
   padding: 12px 10px;
-  font-size: 11px;
+  font-size: 0.85rem;
   color: var(--fg-2);
 }
 .workspace-label small {
   display: block;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 0.8rem;
   margin-top: 1px;
 }
 .workspace-icon {
@@ -1057,7 +1057,7 @@ input:focus-visible,
   margin-left: auto;
 }
 .nav-label {
-  font-size: 9px;
+  font-size: 0.78rem;
   letter-spacing: 1.8px;
   color: #718198;
   margin: 0 12px 13px;
@@ -1074,7 +1074,7 @@ input:focus-visible,
   border: 1px solid transparent;
   border-radius: 7px;
   color: #96a7bc;
-  font-size: 12px;
+  font-size: 0.9rem;
   position: relative;
 }
 .tabs a.active {
@@ -1107,7 +1107,7 @@ input:focus-visible,
   border-radius: 4px;
   min-width: 20px;
   text-align: center;
-  font-size: 10px;
+  font-size: 0.8rem;
 }
 .sidebar-bottom {
   margin-top: auto;
@@ -1119,23 +1119,23 @@ input:focus-visible,
   margin-bottom: 11px;
 }
 .sidebar-bottom strong {
-  font-size: 11px;
+  font-size: 0.85rem;
   color: var(--fg-2);
   font-weight: 500;
 }
 .sidebar-bottom p {
-  font-size: 11px;
+  font-size: 0.85rem;
   color: var(--muted);
   line-height: 1.8;
 }
 .sidebar-bottom a {
-  font-size: 10px;
+  font-size: 0.8rem;
   color: var(--accent);
   display: flex;
   justify-content: space-between;
 }
 .sidebar-foot {
-  font-size: 9px;
+  font-size: 0.78rem;
   color: #798ca4;
   margin: 24px 8px 0;
   display: flex;
@@ -1160,7 +1160,7 @@ input:focus-visible,
   gap: 12px;
 }
 .breadcrumb {
-  font-size: 11px;
+  font-size: 0.85rem;
   color: var(--muted);
   display: flex;
   gap: 14px;
@@ -1177,7 +1177,7 @@ input:focus-visible,
   gap: 18px;
 }
 .badge {
-  font-size: 9px;
+  font-size: 0.78rem;
   letter-spacing: 1px;
   padding: 4px 8px;
   border-radius: 5px;
@@ -1193,7 +1193,7 @@ input:focus-visible,
   background: #61d8b40a;
 }
 .heartbeat {
-  font-size: 10px;
+  font-size: 0.8rem;
   color: var(--muted);
   gap: 7px;
 }
@@ -1234,28 +1234,28 @@ main {
   gap: 20px;
 }
 .eyebrow {
-  font-size: 9px;
+  font-size: 0.78rem;
   color: var(--accent);
   letter-spacing: 2px;
   font-weight: 600;
   margin-bottom: 7px;
 }
 .page-heading h1 {
-  font-size: 29px;
+  font-size: 1.933rem;
   font-weight: 550;
   letter-spacing: -1px;
   line-height: 1.3;
 }
 .page-heading p {
   color: var(--muted);
-  font-size: 12px;
+  font-size: 0.9rem;
   margin: 7px 0 0;
 }
 .heading-tag {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 10px;
+  font-size: 0.8rem;
   color: var(--fg-2);
   border: 1px solid var(--line);
   border-radius: 6px;
@@ -1335,20 +1335,20 @@ main {
   z-index: 1;
 }
 .health-copy .eyebrow {
-  font-size: 8px;
+  font-size: 0.75rem;
   color: var(--fg-2);
   letter-spacing: 1.6px;
   margin-bottom: 4px;
 }
 .health-copy h2 {
-  font-size: 20px;
+  font-size: 1.333rem;
   font-weight: 500;
   letter-spacing: -0.45px;
 }
 .health-copy p {
   margin: 4px 0 0;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 0.85rem;
 }
 .health-summary {
   margin-left: auto;
@@ -1359,14 +1359,14 @@ main {
 }
 .health-summary strong {
   font-family: var(--mono);
-  font-size: 23px;
+  font-size: 1.533rem;
   font-weight: 400;
   color: var(--fg);
   display: block;
   line-height: 1.4;
 }
 .health-summary span {
-  font-size: 8px;
+  font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 1px;
   color: var(--muted);
@@ -1398,19 +1398,19 @@ main {
   color: #6e829c;
 }
 .stat-label {
-  font-size: 9px;
+  font-size: 0.78rem;
   letter-spacing: 0.65px;
   text-transform: uppercase;
   color: #a0afc2;
 }
 .stat-value {
-  font-size: 29px;
+  font-size: 1.933rem;
   font-weight: 500;
   letter-spacing: -1px;
   margin-top: 12px;
 }
 .stat-sub {
-  font-size: 9px;
+  font-size: 0.78rem;
   margin-top: 7px;
   letter-spacing: 0.1px;
 }
@@ -1455,20 +1455,20 @@ main {
   flex-wrap: wrap;
 }
 .panel-head h2 {
-  font-size: 12px;
+  font-size: 0.9rem;
   letter-spacing: 0.1px;
   text-transform: none;
   color: var(--fg);
   font-weight: 550;
 }
 .panel-head > .muted {
-  font-size: 9px;
+  font-size: 0.78rem;
 }
 .panel-body {
   padding: 19px;
 }
 .grid-label {
-  font-size: 9px;
+  font-size: 0.78rem;
   letter-spacing: 1px;
   margin-bottom: 10px;
   color: #92a5bc;
@@ -1486,7 +1486,7 @@ main {
   border-radius: 6px;
   padding: 9px 10px;
   gap: 9px;
-  font-size: 11px;
+  font-size: 0.85rem;
 }
 .tile .dot {
   height: 5px;
@@ -1496,7 +1496,7 @@ main {
   font-weight: 400;
 }
 .tile .sub {
-  font-size: 9px;
+  font-size: 0.78rem;
 }
 .tile.crit {
   border-color: #ff788533;
@@ -1512,14 +1512,14 @@ main {
 .sources .tile {
   padding: 8px;
   flex-wrap: wrap;
-  font-size: 9px;
+  font-size: 0.78rem;
   gap: 6px;
 }
 .sources .sub {
   display: none;
 }
 .unit-clear {
-  font-size: 10px;
+  font-size: 0.8rem;
   color: var(--ok);
   display: flex;
   gap: 7px;
@@ -1537,13 +1537,13 @@ main {
   column-gap: 7px;
 }
 .container-grid .name {
-  font-size: 9px;
+  font-size: 0.78rem;
   flex: 1;
 }
 .container-grid .sub {
   width: 100%;
   margin-left: 12px;
-  font-size: 8px;
+  font-size: 0.75rem;
 }
 .container-grid .tile.crit .sub {
   color: var(--crit);
@@ -1552,7 +1552,7 @@ main {
   display: flex;
   gap: 15px;
   align-items: center;
-  font-size: 9px;
+  font-size: 0.78rem;
   color: var(--muted);
   margin-bottom: 17px;
 }
@@ -1619,7 +1619,7 @@ main {
   background: #62bfae;
 }
 .timeline .grid-label {
-  font-size: 8px;
+  font-size: 0.75rem;
   letter-spacing: 0.3px;
 }
 .incident-toolbar {
@@ -1643,7 +1643,7 @@ main {
   color: var(--muted);
   padding: 5px 11px;
   border-radius: 4px;
-  font-size: 10px;
+  font-size: 0.8rem;
 }
 .filter-button[aria-pressed="true"] {
   background: #253449;
@@ -1674,7 +1674,7 @@ main {
   border: 0;
   outline: none;
   color: var(--fg);
-  font-size: 10px;
+  font-size: 0.8rem;
   padding: 8px 0;
   width: 100%;
   min-width: 0;
@@ -1699,28 +1699,28 @@ main {
   outline-offset: -2px;
 }
 .inc-title {
-  font-size: 11px;
+  font-size: 0.85rem;
   white-space: normal;
   line-height: 1.6;
   font-weight: 500;
 }
 .inc-meta {
-  font-size: 9px;
+  font-size: 0.78rem;
   gap: 6px 10px;
   margin-top: 6px;
 }
 .inc-meta .chip {
-  font-size: 8px;
+  font-size: 0.75rem;
 }
 .inc-right {
-  font-size: 9px;
+  font-size: 0.78rem;
   display: grid;
   gap: 6px;
   justify-items: end;
   margin-left: 8px;
 }
 .state-pill {
-  font-size: 8px;
+  font-size: 0.75rem;
   padding: 3px 7px;
   letter-spacing: 0.2px;
 }
@@ -1738,16 +1738,16 @@ main {
 }
 .chip {
   border-color: #2a3c52;
-  font-size: 10px;
+  font-size: 0.8rem;
 }
 .empty {
-  font-size: 12px;
+  font-size: 0.9rem;
   line-height: 1.8;
 }
 .foot {
   padding: 16px 34px;
   border-color: var(--line);
-  font-size: 8px;
+  font-size: 0.75rem;
   letter-spacing: 0.5px;
   gap: 15px;
   margin-top: auto;
@@ -1777,10 +1777,10 @@ main {
   background: linear-gradient(120deg, #172737, #151c2b);
 }
 .detail-head h1 {
-  font-size: 24px;
+  font-size: 1.6rem;
 }
 .detail-meta {
-  font-size: 11px;
+  font-size: 0.85rem;
 }
 .step-no {
   border-color: #31575a;
@@ -1788,73 +1788,73 @@ main {
   color: var(--accent);
   width: 24px;
   height: 24px;
-  font-size: 10px;
+  font-size: 0.8rem;
 }
 .step-who {
-  font-size: 8px;
+  font-size: 0.75rem;
 }
 .facts {
-  font-size: 12px;
+  font-size: 0.9rem;
 }
 .evidence,
 .codebox,
 .checks code {
   background: #0a111c;
   border-radius: 7px;
-  font-size: 11px;
+  font-size: 0.85rem;
 }
 .ai {
   background: #a99cf609;
   border-color: var(--ai);
-  font-size: 12px;
+  font-size: 0.9rem;
 }
 .ai-foot,
 .untrusted-note {
-  font-size: 10px;
+  font-size: 0.8rem;
   line-height: 1.7;
 }
 .badge-ai {
   color: #c1b7f9;
 }
 .cause-name {
-  font-size: 17px;
+  font-size: 1.133rem;
 }
 .stage {
   padding: 16px;
 }
 .stage-name {
-  font-size: 13px;
+  font-size: 0.95rem;
 }
 .stage-time {
-  font-size: 23px;
+  font-size: 1.533rem;
   color: var(--accent);
 }
 .stage-who {
-  font-size: 8px;
+  font-size: 0.75rem;
   line-height: 1.7;
 }
 .stage-count {
-  font-size: 11px;
+  font-size: 0.85rem;
 }
 .stage-note {
-  font-size: 10px;
+  font-size: 0.8rem;
   line-height: 1.7;
 }
 .rules-list {
-  font-size: 12px;
+  font-size: 0.9rem;
   gap: 14px;
 }
 .callout {
-  font-size: 12px;
+  font-size: 0.9rem;
   border-color: var(--accent);
   background: #6de2d006;
   line-height: 1.8;
 }
 table.data {
-  font-size: 11px;
+  font-size: 0.85rem;
 }
 table.data th {
-  font-size: 9px;
+  font-size: 0.78rem;
   padding: 12px 10px;
 }
 table.data td {
@@ -1864,88 +1864,88 @@ table.data tr:hover td {
   background: #ffffff03;
 }
 .redact-row {
-  font-size: 10px;
+  font-size: 0.8rem;
   grid-template-columns: minmax(0, 1fr) 16px minmax(0, 1fr);
   gap: 8px;
   padding: 13px 0;
 }
 .redact-row .rule {
   grid-column: 1/-1;
-  font-size: 9px;
+  font-size: 0.78rem;
 }
 .compare h3 {
-  font-size: 9px;
+  font-size: 0.78rem;
   line-height: 1.6;
 }
 .back {
-  font-size: 11px;
+  font-size: 0.85rem;
   color: var(--accent);
 }
 /* Data stays readable at ordinary laptop viewing distances. */
 .stat-label {
-  font-size: 10px;
+  font-size: 0.8rem;
 }
 .stat-sub {
-  font-size: 10px;
+  font-size: 0.8rem;
 }
 .panel-head h2 {
-  font-size: 13px;
+  font-size: 0.95rem;
 }
 .grid-label {
-  font-size: 10px;
+  font-size: 0.8rem;
 }
 .container-grid .name {
-  font-size: 11px;
+  font-size: 0.85rem;
 }
 .container-grid .sub {
-  font-size: 10px;
+  font-size: 0.8rem;
 }
 .sources .tile {
-  font-size: 10px;
+  font-size: 0.8rem;
 }
 .inc-title {
-  font-size: 12px;
+  font-size: 0.9rem;
 }
 .inc-meta,
 .inc-right {
-  font-size: 10px;
+  font-size: 0.8rem;
 }
 .inc-meta .chip {
-  font-size: 9px;
+  font-size: 0.78rem;
 }
 .state-pill {
-  font-size: 9px;
+  font-size: 0.78rem;
 }
 .steps > .panel:nth-child(-n + 4) {
   grid-column: 1/-1;
 }
 @media (min-width: 1600px) {
   :root {
-    font-size: 15px;
+    font-size: 1rem;
   }
   .stat-value {
-    font-size: 34px;
+    font-size: 2.267rem;
   }
   .stat-label,
   .stat-sub {
-    font-size: 11px;
+    font-size: 0.85rem;
   }
   .inc-title,
   .tile {
-    font-size: 13px;
+    font-size: 0.95rem;
   }
   .inc-meta,
   .inc-right {
-    font-size: 11px;
+    font-size: 0.85rem;
   }
   .container-grid .name {
-    font-size: 11px;
+    font-size: 0.85rem;
   }
   .panel-head h2 {
-    font-size: 14px;
+    font-size: 1rem;
   }
   .page-heading h1 {
-    font-size: 34px;
+    font-size: 2.267rem;
   }
 }
 @media (max-width: 1200px) {
@@ -1964,11 +1964,11 @@ table.data tr:hover td {
     padding: 0 25px;
   }
   .brand {
-    font-size: 26px;
+    font-size: 1.733rem;
     padding: 0 8px;
   }
   .brand-caption {
-    font-size: 6px;
+    font-size: 0.75rem;
   }
   .stats {
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1983,7 +1983,7 @@ table.data tr:hover td {
     gap: 18px;
   }
   .health-summary strong {
-    font-size: 20px;
+    font-size: 1.333rem;
   }
   .container-grid {
     grid-template-columns: 1fr;
@@ -2012,7 +2012,7 @@ table.data tr:hover td {
     margin-left: 188px;
   }
   .brand {
-    font-size: 24px;
+    font-size: 1.6rem;
     gap: 10px;
     padding: 0 5px;
   }
@@ -2027,10 +2027,10 @@ table.data tr:hover td {
     height: 9px;
   }
   .brand-caption {
-    font-size: 5px;
+    font-size: 0.75rem;
   }
   .tabs a {
-    font-size: 10px;
+    font-size: 0.8rem;
     gap: 9px;
     padding: 12px 9px;
   }
@@ -2075,11 +2075,11 @@ table.data tr:hover td {
     background: #0c1420;
   }
   .brand {
-    font-size: 26px;
+    font-size: 1.733rem;
     padding: 0 4px;
   }
   .brand-caption {
-    font-size: 6px;
+    font-size: 0.75rem;
   }
   .workspace-label,
   .nav-label,
@@ -2097,7 +2097,7 @@ table.data tr:hover td {
   }
   .tabs a {
     flex: none;
-    font-size: 10px;
+    font-size: 0.8rem;
     padding: 9px 10px;
     gap: 7px;
   }
@@ -2121,11 +2121,11 @@ table.data tr:hover td {
     gap: 9px;
   }
   .breadcrumb {
-    font-size: 9px;
+    font-size: 0.78rem;
     gap: 8px;
   }
   .badge {
-    font-size: 8px;
+    font-size: 0.75rem;
     padding: 3px 5px;
   }
   main {
@@ -2133,10 +2133,10 @@ table.data tr:hover td {
     gap: 18px;
   }
   .page-heading h1 {
-    font-size: 26px;
+    font-size: 1.733rem;
   }
   .page-heading p {
-    font-size: 11px;
+    font-size: 0.85rem;
     max-width: 300px;
   }
   .health-banner {
@@ -2148,10 +2148,10 @@ table.data tr:hover td {
     height: 47px;
   }
   .health-copy h2 {
-    font-size: 16px;
+    font-size: 1.067rem;
   }
   .health-copy p {
-    font-size: 10px;
+    font-size: 0.8rem;
   }
   .stats {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -2161,7 +2161,7 @@ table.data tr:hover td {
     padding: 15px;
   }
   .stat-value {
-    font-size: 28px;
+    font-size: 1.867rem;
   }
   .panel-head {
     padding: 15px;
@@ -2184,7 +2184,7 @@ table.data tr:hover td {
     margin: 11px 0 0;
   }
   .inc-meta {
-    font-size: 9px;
+    font-size: 0.78rem;
   }
   .search-wrap {
     max-width: none;
@@ -2212,10 +2212,10 @@ table.data tr:hover td {
     display: none;
   }
   .detail-head h1 {
-    font-size: 19px;
+    font-size: 1.267rem;
   }
   .step-who {
-    font-size: 7px;
+    font-size: 0.75rem;
   }
   .redact-row {
     grid-template-columns: 1fr;
@@ -2224,7 +2224,7 @@ table.data tr:hover td {
     display: none;
   }
   .codebox {
-    font-size: 10px;
+    font-size: 0.8rem;
   }
   .refresh-note {
     display: none;
@@ -2292,12 +2292,12 @@ body {
   color: var(--accent);
 }
 .tabs a {
-  font-size: 13px;
+  font-size: 0.95rem;
 }
 .advanced-label {
   margin: 27px 12px 4px;
   color: #8197ad;
-  font-size: 9px;
+  font-size: 0.78rem;
 }
 .nav-count {
   color: #ff6c91;
@@ -2309,16 +2309,16 @@ main {
   padding-top: 34px;
 }
 .page-heading h1 {
-  font-size: 34px;
+  font-size: 2.267rem;
   letter-spacing: -1.2px;
   font-weight: 600;
 }
 .page-heading p {
-  font-size: 13px;
+  font-size: 0.95rem;
 }
 .eyebrow {
   color: var(--accent);
-  font-size: 10px;
+  font-size: 0.8rem;
   letter-spacing: 1.8px;
 }
 .health-banner {
@@ -2337,24 +2337,24 @@ main {
   background-size: 28px 28px;
 }
 .health-copy h2 {
-  font-size: 25px;
+  font-size: 1.667rem;
   font-weight: 550;
 }
 .health-copy p {
-  font-size: 13px;
+  font-size: 0.95rem;
   margin-top: 9px;
   max-width: 580px;
 }
 .health-copy .eyebrow {
   color: var(--accent);
-  font-size: 9px;
+  font-size: 0.78rem;
 }
 .health-summary strong {
-  font-size: 29px;
+  font-size: 1.933rem;
   color: var(--accent);
 }
 .health-summary span {
-  font-size: 9px;
+  font-size: 0.78rem;
 }
 .health-orbit {
   width: 72px;
@@ -2383,16 +2383,16 @@ main {
   padding: 20px;
 }
 .stat-label {
-  font-size: 11px;
+  font-size: 0.85rem;
   letter-spacing: 0.6px;
 }
 .stat-value {
-  font-size: 34px;
+  font-size: 2.267rem;
   font-weight: 550;
   margin-top: 16px;
 }
 .stat-sub {
-  font-size: 11px;
+  font-size: 0.85rem;
   line-height: 1.5;
   margin-top: 10px;
 }
@@ -2443,7 +2443,7 @@ main {
 .priority-top .eyebrow {
   color: #ff7295;
   margin: 0;
-  font-size: 10px;
+  font-size: 0.8rem;
 }
 .priority-layout {
   padding: 16px 24px 23px;
@@ -2456,12 +2456,12 @@ main {
   min-width: 0;
 }
 .priority-main h2 {
-  font-size: 23px;
+  font-size: 1.533rem;
   font-weight: 550;
   letter-spacing: -0.5px;
 }
 .priority-summary {
-  font-size: 12px;
+  font-size: 0.9rem;
   color: var(--fg-2);
   margin: 8px 0 20px;
   line-height: 1.7;
@@ -2473,12 +2473,12 @@ main {
   gap: 24px;
 }
 .priority-facts span {
-  font-size: 9px;
+  font-size: 0.78rem;
   color: #c497b2;
   letter-spacing: 1px;
 }
 .priority-facts p {
-  font-size: 12px;
+  font-size: 0.9rem;
   color: var(--fg-2);
   margin: 5px 0 0;
   line-height: 1.65;
@@ -2501,7 +2501,7 @@ main {
   justify-content: space-between;
   gap: 25px;
   padding: 13px 17px;
-  font-size: 13px;
+  font-size: 0.95rem;
   font-weight: 650;
 }
 .primary-button:hover {
@@ -2509,7 +2509,7 @@ main {
   box-shadow: 0 0 24px #27ffd133;
 }
 .priority-age {
-  font-size: 10px;
+  font-size: 0.8rem;
   color: var(--muted);
 }
 .priority-bottom {
@@ -2520,7 +2520,7 @@ main {
   gap: 9px;
   align-items: center;
   color: #9eabbc;
-  font-size: 10px;
+  font-size: 0.8rem;
 }
 .priority-bottom svg {
   height: 13px;
@@ -2544,11 +2544,11 @@ main {
   height: 30px;
 }
 .priority-card.clear h2 {
-  font-size: 20px;
+  font-size: 1.333rem;
 }
 .priority-card.clear p {
   color: var(--muted);
-  font-size: 13px;
+  font-size: 0.95rem;
 }
 .priority-card.warn {
   border-color: #806625;
@@ -2572,7 +2572,7 @@ main {
   display: flex;
   justify-content: space-between;
   gap: 15px;
-  font-size: 12px;
+  font-size: 0.9rem;
   color: var(--fg-2);
 }
 .resource-label strong {
@@ -2591,7 +2591,7 @@ main {
 }
 .resource-row small {
   display: block;
-  font-size: 10px;
+  font-size: 0.8rem;
   color: var(--muted);
   margin-top: 8px;
 }
@@ -2604,32 +2604,32 @@ main {
   box-shadow: 0 0 10px #27ffd144;
 }
 .panel-head h2 {
-  font-size: 14px;
+  font-size: 1rem;
 }
 .panel-head > .muted {
-  font-size: 10px;
+  font-size: 0.8rem;
 }
 .panel-head {
   border-color: #1d2a38;
 }
 .inc-title {
-  font-size: 13px;
+  font-size: 0.95rem;
 }
 .inc-meta {
-  font-size: 11px;
+  font-size: 0.85rem;
 }
 .inc-meta .chip {
-  font-size: 10px;
+  font-size: 0.8rem;
 }
 .incident {
   padding-top: 19px;
   padding-bottom: 19px;
 }
 .state-pill {
-  font-size: 10px;
+  font-size: 0.8rem;
 }
 .filter-button {
-  font-size: 11px;
+  font-size: 0.85rem;
   padding: 6px 12px;
 }
 .filter-button[aria-pressed="true"] {
@@ -2637,11 +2637,11 @@ main {
   color: var(--accent);
 }
 .search-wrap input {
-  font-size: 12px;
+  font-size: 0.9rem;
 }
 .timeline-legend,
 .tl-axis {
-  font-size: 10px;
+  font-size: 0.8rem;
 }
 .tl-lane {
   background: #13202b55;
@@ -2664,10 +2664,10 @@ main {
   box-shadow: 0 0 8px #31f4ac44;
 }
 .container-grid .name {
-  font-size: 12px;
+  font-size: 0.9rem;
 }
 .container-grid .sub {
-  font-size: 10px;
+  font-size: 0.8rem;
 }
 .badge-demo {
   color: #cfadff;
@@ -2694,12 +2694,12 @@ main {
 .codebox,
 .checks code {
   background: #03070c;
-  font-size: 12px;
+  font-size: 0.9rem;
 }
 .facts,
 .ai,
 .rules-list {
-  font-size: 13px;
+  font-size: 0.95rem;
 }
 .ai {
   background: #b68aff0b;
@@ -2709,10 +2709,10 @@ main {
 }
 @media (max-width: 1200px) {
   .tabs a {
-    font-size: 11px;
+    font-size: 0.85rem;
   }
   .health-copy h2 {
-    font-size: 22px;
+    font-size: 1.467rem;
   }
   .health-summary {
     display: none;
@@ -2731,7 +2731,7 @@ main {
     min-width: 160px;
   }
   .page-heading h1 {
-    font-size: 30px;
+    font-size: 2rem;
   }
 }
 @media (max-width: 650px) {
@@ -2739,30 +2739,30 @@ main {
     padding-bottom: 12px;
   }
   .tabs a {
-    font-size: 11px;
+    font-size: 0.85rem;
   }
   .advanced-label {
     display: none;
   }
   .page-heading h1 {
-    font-size: 27px;
+    font-size: 1.8rem;
   }
   .health-banner {
     padding: 22px 18px;
     gap: 15px;
   }
   .health-copy h2 {
-    font-size: 21px;
+    font-size: 1.4rem;
   }
   .health-copy p {
-    font-size: 12px;
+    font-size: 0.9rem;
   }
   .health-orbit {
     width: 45px;
     height: 45px;
   }
   .health-copy .eyebrow {
-    font-size: 8px;
+    font-size: 0.75rem;
   }
   .business-stats {
     gap: 10px;
@@ -2772,13 +2772,13 @@ main {
     min-height: 155px;
   }
   .stat-label {
-    font-size: 10px;
+    font-size: 0.8rem;
   }
   .stat-value {
-    font-size: 30px;
+    font-size: 2rem;
   }
   .stat-sub {
-    font-size: 10px;
+    font-size: 0.8rem;
   }
   .priority-layout {
     flex-direction: column;
@@ -2789,7 +2789,7 @@ main {
     padding: 19px 19px 0;
   }
   .priority-main h2 {
-    font-size: 22px;
+    font-size: 1.467rem;
   }
   .priority-action {
     width: 100%;
@@ -2813,13 +2813,13 @@ main {
     gap: 15px;
   }
   .container-grid .name {
-    font-size: 11px;
+    font-size: 0.85rem;
   }
   .inc-title {
-    font-size: 12px;
+    font-size: 0.9rem;
   }
   .inc-meta {
-    font-size: 10px;
+    font-size: 0.8rem;
   }
   .health-copy {
     min-width: 0;
@@ -2828,3 +2828,57 @@ main {
     display: none;
   }
 }
+
+
+/* ---------------------------------------------------------------------------------
+   AI explanation: one of Lookout's key features, so it stands out. Violet = AI,
+   and the "unverified hypothesis" label stays prominent: it explains, it doesn't decide.
+   --------------------------------------------------------------------------------- */
+.panel.step-ai {
+  border: 1px solid rgba(169, 156, 246, 0.55);
+  background: linear-gradient(0deg, rgba(169, 156, 246, 0.06), rgba(169, 156, 246, 0.06)), var(--panel);
+  box-shadow: 0 0 0 1px rgba(169, 156, 246, 0.12), 0 0 28px rgba(169, 156, 246, 0.12);
+}
+.panel.step-ai .panel-head h2 { color: #d9d2ff; }
+.panel.step-ai .step-no { border-color: rgba(169, 156, 246, 0.7); color: #d9d2ff; }
+.ai-label {
+  display: inline-flex; align-items: center; gap: 0.45rem; margin-bottom: 0.9rem;
+  font-size: 0.85rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+  color: #d9d2ff; background: rgba(169, 156, 246, 0.16); border: 1px solid rgba(169, 156, 246, 0.45);
+  padding: 0.3rem 0.75rem; border-radius: 999px;
+}
+.ai {
+  border-left: 4px solid #a99cf6;
+  background: rgba(169, 156, 246, 0.09);
+  padding: 1.15rem 1.3rem;
+  border-radius: 0 8px 8px 0;
+}
+.ai .ai-text {
+  font-size: 1.22rem;
+  line-height: 1.6;
+  color: #f2efff;
+  font-weight: 450;
+  margin: 0;
+}
+.ai .ai-foot, .ai-foot {
+  font-size: 0.85rem;
+  line-height: 1.6;
+  color: #b9b3d9;
+  margin-top: 0.85rem;
+}
+.ai-waiting { font-size: 1rem; color: #cfc8f5; }
+
+/* The same explanation, previewed on the overview's priority card */
+.priority-ai {
+  margin-top: 1.1rem;
+  padding: 0.9rem 1.1rem;
+  border-left: 4px solid #a99cf6;
+  background: rgba(169, 156, 246, 0.1);
+  border-radius: 0 8px 8px 0;
+}
+.priority-ai-label {
+  display: block; margin-bottom: 0.35rem;
+  font-size: 0.78rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #c9c0fb;
+}
+.priority-ai p { margin: 0; font-size: 1.05rem; line-height: 1.55; color: #f2efff; }
+.priority-ai .ai-waiting { font-size: 0.95rem; }

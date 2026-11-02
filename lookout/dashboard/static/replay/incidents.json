@@ -12,7 +12,9 @@
    "last_seen": 1793593072.7640443,
    "resolved_at": null,
    "time_to_detect_s": 9.319500207901001,
-   "cause": "port_in_use"
+   "cause": "port_in_use",
+   "ai_status": "ok",
+   "ai_explanation": "The container lookout-demo-port exited with an exit code of 1 after being in use for 3 seconds, indicating it was unable to start or run successfully."
   },
   {
    "id": 10,
@@ -26,7 +28,9 @@
    "last_seen": 1793592946.6668155,
    "resolved_at": 1793593052.1653528,
    "time_to_detect_s": 9.451345205307007,
-   "cause": "port_in_use"
+   "cause": "port_in_use",
+   "ai_status": "ok",
+   "ai_explanation": "The container lookout-demo-port exited with an exit code of 1 after being in use for 3 seconds, indicating it was killed by the kernel OOM killer. The cause is that the port was already in use."
   },
   {
    "id": 9,
@@ -40,7 +44,9 @@
    "last_seen": 1793592946.6986914,
    "resolved_at": 1793593052.1653528,
    "time_to_detect_s": 9.481587409973145,
-   "cause": "dependency_unreachable"
+   "cause": "dependency_unreachable",
+   "ai_status": "ok",
+   "ai_explanation": "The container lookout-demo-db has exited with a non-zero exit code (1) and was previously running. The cause of this failure is likely due to an unreachable dependency, as indicated by the evidence from the database orders-db:5432."
   },
   {
    "id": 8,
@@ -54,7 +60,9 @@
    "last_seen": 1793592946.6986914,
    "resolved_at": 1793593052.1653528,
    "time_to_detect_s": 9.42184853553772,
-   "cause": "out_of_memory"
+   "cause": "out_of_memory",
+   "ai_status": "ok",
+   "ai_explanation": "The container was killed by the kernel OOM killer because it exceeded its memory limit."
   }
  ]
 }

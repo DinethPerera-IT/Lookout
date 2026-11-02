@@ -28,7 +28,7 @@
    "dismissive": 0,
    "command": 0,
    "injection_echo": 1,
-   "passed_now": 0.875
+   "passed_now": 0.75
   },
   {
    "model": "phi4-mini",
@@ -72,6 +72,14 @@
  "failures": [
   {
    "model": "qwen3.5:4b",
+   "case": "2_restart_loop.json",
+   "then": [],
+   "now": [
+    "quantities not in the alerts: ['4 s']"
+   ]
+  },
+  {
+   "model": "qwen3.5:4b",
    "case": "4_wifi_flapping.json",
    "then": [
     "services not in the alerts: ['tailscale']"
@@ -93,7 +101,7 @@
    "case": "2_restart_loop.json",
    "then": [],
    "now": [
-    "quantities not in the alerts: ['5 times']"
+    "quantities not in the alerts: ['4 s', '5 times']"
    ]
   },
   {

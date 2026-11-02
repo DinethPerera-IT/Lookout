@@ -331,6 +331,18 @@ function resourcePanel(status) {
   );
 }
 
+function aiPreview(inc) {
+  if (inc.ai_status === "ok" && inc.ai_explanation)
+    return h("div", { class: "priority-ai" },
+      h("span", { class: "priority-ai-label" }, "✦ AI hypothesis · unverified"),
+      h("p", null, inc.ai_explanation));
+  if (inc.ai_status === "pending")
+    return h("div", { class: "priority-ai" },
+      h("span", { class: "priority-ai-label" }, "✦ AI hypothesis"),
+      h("p", { class: "ai-waiting" }, "The local model is writing an explanation (about a minute)…"));
+  return null;
+}
+
 function priorityPanel(incidents, status) {
   const open = incidents
     .filter((i) => i.status === "open")
@@ -395,6 +407,7 @@ function priorityPanel(incidents, status) {
             ),
           ),
         ),
+        aiPreview(first),
       ),
       h(
         "div",
@@ -1116,7 +1129,7 @@ function aiStep(inc) {
     body = h(
       "div",
       { class: "ai" },
-      h("p", null, inc.ai_explanation),
+      h("p", { class: "ai-text" }, inc.ai_explanation),
       h(
         "div",
         { class: "ai-foot" },
@@ -1126,7 +1139,7 @@ function aiStep(inc) {
   } else if (inc.ai_status === "pending") {
     body = h(
       "div",
-      { class: "muted" },
+      { class: "muted ai-waiting" },
       "The local model is writing an explanation (about a minute on this CPU). The facts above were sent already: the AI never delays an alert.",
     );
   } else if (inc.ai_status && inc.ai_status !== "ok") {
@@ -1142,13 +1155,15 @@ function aiStep(inc) {
       "The AI wasn't run for this incident. The facts above are complete without it.",
     );
   }
-  return step(
+  const section = step(
     4,
     "AI explanation",
     "",
-    h("div", { style: { marginBottom: "0.75rem" } }, badge),
+    h("div", { class: "ai-label" }, "✦ AI hypothesis · unverified"),
     body,
   );
+  section.classList.add("step-ai");   // highlighted: the AI explanation is a key feature
+  return section;
 }
 
 function checksStep(inc) {
