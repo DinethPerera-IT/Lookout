@@ -1,5 +1,5 @@
 {
- "generated_at": 1793593182.5445397,
+ "generated_at": 1793593682.7161317,
  "now": 1793593372.812994,
  "synthetic": false,
  "note": "Recorded from Lookout's demo lab on 2026-11-02 with the real pipeline and model; only incidents matching 'lookout-demo' are kept; scrubbed like every API response."

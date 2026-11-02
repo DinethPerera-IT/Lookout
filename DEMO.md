@@ -25,7 +25,7 @@ Measured on this server (i5-4590, CPU-only, llama3.2:3b):
    ```
    The first run on a fresh state reports whatever is currently unusual on the host (with the model on, that can take a few minutes). Do this well before visitors arrive.
 4. **Faster AI on the day:** in `config.toml`, uncomment `keep_alive = "30m"` under `[llm]`, then `sudo deploy/install.sh` again (it re-copies the code and config). This keeps the model loaded between demos.
-5. **Optional, hide containers from the public screen:** `[dashboard] hide_containers = ["private-app-app", "private-app-db"]` (detection is unaffected), then `sudo deploy/install.sh`.
+5. **Optional, hide containers from the public screen:** `[dashboard] hide_containers` is set to the private app containers (detection is unaffected); change it in `config.toml`, then `sudo deploy/install.sh`.
 6. **Reach the dashboard:**
    - **Caddy** (LAN/Tailscale only): add `deploy/caddy/lookout.caddy` to `/etc/caddy/Caddyfile` (back it up first as `Caddyfile.bak-<date>`), run `caddy validate --config /etc/caddy/Caddyfile`, then `sudo systemctl reload caddy`, and add a Pi-hole local DNS record `lookout.home.internal` → the server. **Never** add it to the Cloudflare tunnel.
    - **Or an SSH tunnel from the laptop** (no Caddy needed): `ssh -L 8088:127.0.0.1:8088 <user>@<server>`, then open http://localhost:8088

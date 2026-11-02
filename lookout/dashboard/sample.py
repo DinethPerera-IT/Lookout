@@ -103,7 +103,7 @@ def export(state, now, out=OUT, scrub=None, note=None, cfg=None):
     for old in out.glob("*.json"):
         old.unlink()
     conn = state.conn
-    files = {"status": api.status(conn, now, dash.get("hide_containers", [])), "incidents": api.incidents(conn), "runs_latest": api.runs_latest(conn),
+    files = {"status": api.status(conn, now, dash.get("hide_containers", [])), "incidents": api.incidents(conn), "runs_latest": api.runs_latest(conn, hide_containers=dash.get("hide_containers", [])),
              "benchmark": api.benchmark()}
     for item in files["incidents"]["incidents"]:
         files[f"incident-{item['id']}"] = api.incident(conn, item["id"])

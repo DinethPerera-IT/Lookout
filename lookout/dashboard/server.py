@@ -111,7 +111,7 @@ class Handler(BaseHTTPRequestHandler):
                 if data is None:
                     return self._json(HTTPStatus.NOT_FOUND, {"error": "no such incident"})
             else:
-                data = api.runs_latest(conn)
+                data = api.runs_latest(conn, hide_containers=self.server.hide_containers)
             return self._json(200, data)
         except sqlite3.Error:  # e.g. a state DB from before the dashboard existed
             return self._json(HTTPStatus.SERVICE_UNAVAILABLE, {"error": "no data yet"})

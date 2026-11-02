@@ -300,11 +300,19 @@ def test_hidden_containers_stay_off_the_grid_but_nothing_else_changes(tmp_path):
     srv = make_server(db, "127.0.0.1", 0, hide_containers=["private-app-db"])
     threading.Thread(target=srv.serve_forever, daemon=True).start()
     try:
-        body = get(srv, "/api/status")[2].decode()
+        bodies = {path: get(srv, path)[2].decode() for path in ENDPOINTS[:5]}
     finally:
         srv.shutdown()
         srv.server_close()
-    assert "private-app-db" not in body and "grafana" in body
+    for path, body in bodies.items():
+        assert "private-app-db" not in body, path               # on every endpoint, not just the grid
+    assert "grafana" in bodies["/api/status"]
+
+
+def test_bundled_replay_respects_hide_containers(cfg):
+    for name in cfg["dashboard"]["hide_containers"]:
+        for f in REPLAY.glob("*.json"):
+            assert name not in f.read_text(), (name, f.name)
 
 
 def test_stream_signature_changes_when_the_ai_explanation_arrives():

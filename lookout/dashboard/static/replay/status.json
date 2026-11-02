@@ -75,18 +75,6 @@
     "status": "Up 2 weeks (healthy)"
    },
    {
-    "name": "private-app-1",
-    "state": "running",
-    "health": "none",
-    "status": "Up 2 weeks"
-   },
-   {
-    "name": "private-db-1",
-    "state": "running",
-    "health": "healthy",
-    "status": "Up 2 weeks (healthy)"
-   },
-   {
     "name": "lookout-demo-db",
     "state": "running",
     "health": "none",

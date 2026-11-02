@@ -33,15 +33,18 @@ def _run(row):
     return d
 
 
-def latest_run(conn):
-    return _run(conn.execute("SELECT * FROM runs ORDER BY id DESC LIMIT 1").fetchone())
-
-
-def status(conn, now, hide_containers=()):
-    run = latest_run(conn)
+def latest_run(conn, hide_containers=()):
+    """The newest run. Containers listed in hide_containers are left out of its snapshot,
+    whichever endpoint returns it."""
+    run = _run(conn.execute("SELECT * FROM runs ORDER BY id DESC LIMIT 1").fetchone())
     if run and run["snapshot"] and hide_containers:
         run["snapshot"]["containers"] = [c for c in run["snapshot"].get("containers", [])
                                          if c["name"] not in hide_containers]
+    return run
+
+
+def status(conn, now, hide_containers=()):
+    run = latest_run(conn, hide_containers)
     counts = {r["severity"]: r["n"] for r in conn.execute(
         "SELECT severity, count(*) AS n FROM incidents WHERE status = 'open' GROUP BY severity")}
     age = None if run is None else max(0.0, now - run["finished_at"])
@@ -66,8 +69,8 @@ def incident(conn, incident_id):
     return None if row is None else _incident(row, full=True)
 
 
-def runs_latest(conn, recent=24):
-    run = latest_run(conn)
+def runs_latest(conn, recent=24, hide_containers=()):
+    run = latest_run(conn, hide_containers)
     if run is not None:
         run["classified"] = conn.execute("SELECT count(*) FROM incidents WHERE opened_run = ? AND cause IS NOT NULL",
                                          (run["id"],)).fetchone()[0]

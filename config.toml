@@ -107,4 +107,4 @@ port = 8088
 hide_names = []
 # Containers left out of the dashboard's status grid (e.g. ones you'd rather not advertise on
 # a public screen). Detection is unaffected: their incidents are still recorded and reported.
-hide_containers = []
+hide_containers = ["private-app-1", "private-db-1"]   # keep these names off public screens
