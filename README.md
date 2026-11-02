@@ -2,31 +2,49 @@
 
 *Keeps watch over my homelab and raises its hand when something looks off.*
 
-An hourly, read-only job for my homelab. It collects logs and metrics, uses **deterministic rules** to decide whether anything is unusual, and posts the flagged facts to Discord. A **local** LLM (Ollama) adds a plain-English explanation on top. When nothing is unusual it stays silent.
+Lookout watches my homelab's logs, metrics, containers and services. When something breaks, it notices within seconds, works out **why** with deterministic rules, and reports the facts. A small **local** LLM then adds a plain-English explanation, clearly labelled as an unverified hypothesis. A read-only dashboard shows it all live.
 
-> Status: **Phase 7 of 8 (LLM explanation layer) built.** Not scheduled yet: it only runs when started by hand.
+> Status: v1 complete (phases 1–8) plus the expo build: crash evidence, cause classification, reacting in seconds, recent changes and the dashboard. Installed as systemd units in **shadow mode**. Demo script: [`DEMO.md`](DEMO.md).
 
 ## What is it?
 
-A second opinion layered on top of my real alerting. [Uptime Kuma](https://github.com/louislam/uptime-kuma) answers "is the service up?". Lookout answers "is anything *odd*?": a disk filling up, an error burst in one service, a container that restarted, WiFi re-authenticating more than usual. It never replaces Kuma. Kuma also watches this job through a push-monitor heartbeat, so if Lookout itself dies, I still get alerted.
+A second opinion layered on top of my real alerting. [Uptime Kuma](https://github.com/louislam/uptime-kuma) answers "is the service up?". Lookout answers "is anything *odd*, and why?": a container killed for running out of memory, a service that can't reach its database, a port already in use, an error burst, a disk filling up, an upgrade right before a crash. It never replaces Kuma. Kuma also watches Lookout through a push-monitor heartbeat, so if Lookout itself dies, I still get alerted.
 
 ## How does it work?
 
 ```
-systemd timer (hourly)
-  1. COLLECT   journal · systemctl --failed · Prometheus API · /proc   (read-only)
-  2. REDACT    strip tokens, passwords, MACs, SSIDs before anything leaves memory
-  3. DETECT    thresholds + baselines + "never seen before" errors     (code decides)
-  4. EXPLAIN   local Ollama model explains what code flagged            (optional)
-  5. REPORT    Discord: raw facts always, AI explanation below them
-  6. HEARTBEAT ping Uptime Kuma so it knows the job ran
+ TRIGGERS     Docker event (die/oom/health) · systemd OnFailure= · hourly timer (safety net)
+                 │ debounced; one run at a time (file lock)
+ 1 COLLECT    journal · systemctl · Prometheus · /proc · Docker via a GET-only proxy   (read-only)
+ 2 REDACT     tokens, passwords, MACs, SSIDs, emails removed as each line is read
+ 3 DETECT     thresholds · baselines · never-seen-before errors · restarts       (code decides)
+ 4 CLASSIFY   crash evidence -> out_of_memory | disk_full | port_in_use |
+              dependency_unreachable | after_recent_change | app_crash | unknown (code decides)
+ 5 REPORT     facts to Discord + dashboard, state committed, Kuma heartbeat     (seconds)
+ 6 EXPLAIN    local llama3.2:3b explains the classified facts, validated by code,
+              added to the same message afterwards                (AI · unverified · hypothesis)
 ```
 
-Core rules:
-- **Code decides, the LLM explains.** Thresholds are testable and repeatable. An LLM is probabilistic. The model never decides whether something is normal, never chooses what to report, and never assigns severity.
-- **Facts always ship.** The report's facts section is rendered by code. If the model times out or returns rubbish, the report goes out with facts only.
-- **Logs are untrusted.** Log lines can contain text from the internet. They are only counted, templated and quoted, never acted on.
-- **Read-only.** The job never restarts or changes anything.
+**The core principle: the AI can raise its hand, but it can't lower anyone else's.**
+- **Code decides and classifies, the LLM explains.** Every flag, severity and cause comes from rules that are tested and repeatable. The model gets the cause as a given and can't change it. An answer that contradicts the classification, invents a number or name, hedges a fact, plays something down, suggests a command or repeats hostile log text is dropped whole.
+- **The AI can't delay anything.** The facts are delivered and saved *before* the model starts. Its explanation is added to the same Discord message about a minute later.
+- **Read-only everywhere.**
+  - Docker is reached only through a GET-only proxy (`inspect` is blocked because it would expose env vars).
+  - The services run sandboxed as a dedicated user.
+  - The dashboard opens SQLite with `mode=ro`.
+  - Suggested next checks come from an allowlist of read-only commands and are never run.
+- **Redact at the boundary, and log text is untrusted.** Lines are cleaned as they're read, and every dashboard response is scrubbed again (IPs, host names). A test scans every response for leaks.
+- **Watch the watcher.** Every run pings an Uptime Kuma push monitor.
+
+**Why these choices** (portfolio notes):
+- **Deterministic rules plus an LLM only for words.** The decision is auditable and testable, and the model's worst case is a bad sentence, never a missed incident.
+- **A 3B model on CPU.** It fits next to everything else on a 16 GB box, chosen by a benchmark that included prompt-injection cases.
+- **Stdlib Python, no web framework.** Nothing third-party reads my logs, and the dashboard works offline.
+- **Facts first, AI second.** Discovered during the build: waiting for a 60–250 s model before alerting contradicted the core principle.
+
+## Build log
+
+Each phase below was built, tested and committed one at a time; the expo sections after Phase 8 extend it.
 
 ### Phase 1: collectors
 
@@ -443,7 +461,7 @@ browser ──GET──> lookout.dashboard (http.server) ──> api.py ──> 
 - 13 hand-written cases (Python traceback, Go panic, disk full, DNS failure, systemd OOM kill, SIGKILL without OOM, recent changes)
 - the Phase 6 injection lines replayed as a crashed container's logs
 
-**Live run with the model on:** all three demo crashes were classified correctly, with time-to-detect 6–9 s. llama3.2:3b's explanations passed every check, and it picked checks only from the allowlist. That run also showed a templating weakness: random `vethXXXX` interface names (Docker removes them when a container dies) made every message "never seen before". They're now one template, `<iface>`.
+**Live run with the model on:** all three demo crashes were classified correctly, with time-to-detect 6–9 s. llama3.2:3b's explanations passed every check, and it picked checks only from the allowlist. The expo rehearsal then caught llama3.2:3b calling the *port* crash "killed by the kernel OOM killer". The prompt had primed it: the crash facts always said "OOM killer: no evidence". Now that phrase only appears when it's true, and a new check rejects any explanation that claims out-of-memory or disk-full when code classified something else ("contradicts the classification"). That run also showed a templating weakness: random `vethXXXX` interface names (Docker removes them when a container dies) made every message "never seen before". They're now one template, `<iface>`.
 
 ### Reacting in seconds
 
@@ -508,7 +526,10 @@ python3 -m lookout --fixture tests/fixtures/scenarios/flapping.json   # replay a
 echo 'password=hunter2' | python3 -m lookout.redact   # try the redactor
 python3 -m lookout.watch --env-file .env --shadow   # react to Docker events in seconds
 python3 -m lookout.dashboard            # dashboard on http://127.0.0.1:8088/ (add ?replay for demo data)
-python3 -m lookout.dashboard.sample     # rebuild the bundled replay dataset
+python3 -m lookout.dashboard.sample     # rebuild the bundled replay dataset (synthetic story)
+python3 -m lookout.dashboard.sample --from-db STATE.sqlite   # ... or from a recorded demo-lab run
+deploy/demo/demo.sh start|crash-oom|crash-db|crash-port|reset   # the demo lab
+# Expo: DEMO.md · Caddy block (LAN/Tailscale only): deploy/caddy/lookout.caddy
 ```
 
 No third-party runtime dependencies (stdlib only). Tests need pytest:
@@ -541,4 +562,4 @@ Longer-term plans (v2, v3) and the core principle behind them: [`ROADMAP.md`](RO
 | 5 | Discord report + Kuma heartbeat | ✅ |
 | 6 | Model benchmark: llama3.2:3b picked over phi4-mini and qwen3.5:4b | ✅ |
 | 7 | LLM explanation layer with validation and fallback | ✅ |
-| 8 | systemd timer, dedicated user, sandboxing, shadow mode | ✅ built, not installed |
+| 8 | systemd timer, dedicated user, sandboxing, shadow mode | ✅ installed (enable after creating `.env`) |

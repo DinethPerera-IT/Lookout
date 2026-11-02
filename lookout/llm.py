@@ -257,6 +257,7 @@ def ollama_chat(cfg, messages, model=None, mode=None, send_think_false=True, kee
         body["format"] = fmt
     if send_think_false:
         body["think"] = False
+    keep_alive = keep_alive if keep_alive is not None else l.get("keep_alive")
     if keep_alive is not None:
         body["keep_alive"] = keep_alive
     req = urllib.request.Request(l["url"] + "/api/chat", data=json.dumps(body).encode(),

@@ -305,3 +305,14 @@ def test_hidden_containers_stay_off_the_grid_but_nothing_else_changes(tmp_path):
         srv.shutdown()
         srv.server_close()
     assert "private-app-db" not in body and "grafana" in body
+
+
+def test_stream_signature_changes_when_the_ai_explanation_arrives():
+    s = State(":memory:")
+    e = entry()
+    run_id = history.record(s.conn, started_at=1, finished_at=2, mode="live", timings={}, result=result([e]),
+                            ai=history.PENDING, delivered=True, snapshot={})
+    before = api.signature(s.conn)
+    history.update_ai(s.conn, run_id, result([e]), {"ok": True, "model": "m", "summary": "x",
+                                                    "alerts": [(e["key"], "y")]}, 61000.0)
+    assert api.signature(s.conn) != before

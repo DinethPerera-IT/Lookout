@@ -77,10 +77,13 @@ def runs_latest(conn, recent=24):
 
 
 def signature(conn):
-    """Changes whenever a run finishes or an incident changes: the SSE stream's trigger."""
+    """Changes whenever a run finishes, an incident changes or an AI explanation arrives
+    (phase 2 of a run, about a minute later): the SSE stream's trigger."""
     return tuple(conn.execute(
         "SELECT (SELECT max(id) FROM runs), (SELECT count(*) FROM incidents), "
-        "(SELECT max(coalesce(resolved_at, last_seen)) FROM incidents)").fetchone())
+        "(SELECT max(coalesce(resolved_at, last_seen)) FROM incidents), "
+        "(SELECT count(*) FROM incidents WHERE ai_status = 'pending'), "
+        "(SELECT total(llm_ms) FROM runs)").fetchone())
 
 
 def benchmark(bench_dir=BENCH_DIR):

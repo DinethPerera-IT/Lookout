@@ -94,6 +94,9 @@ think = false                  # always sent as "think": false
 timeout_seconds = 600          # a slow summary is fine; a missing one falls back to facts only
 num_ctx = 4096
 num_predict = 600
+# How long Ollama keeps the model in RAM after a call (Ollama's default here: 60s, so each
+# explanation starts with a cold load). For a live demo: keep_alive = "30m". Unset = Ollama's default.
+# keep_alive = "30m"
 
 [dashboard]
 # python -m lookout.dashboard: read-only web UI. Keep it on localhost; Caddy fronts it on the LAN.
