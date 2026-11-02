@@ -326,3 +326,12 @@ def test_stream_signature_changes_when_the_ai_explanation_arrives():
     history.update_ai(s.conn, run_id, result([e]), {"ok": True, "model": "m", "summary": "x",
                                                     "alerts": [(e["key"], "y")]}, 61000.0)
     assert api.signature(s.conn) != before
+
+
+def test_a_new_incident_is_listed_above_an_older_open_one():
+    """Seen live: run 2 refreshed the old incident's last_seen, so the new one was listed second."""
+    s = State(":memory:")
+    old, new = entry("container_down:a"), entry("container_down:b")
+    record(s, result([old]), 1000)
+    record(s, result([new], suppressed=[{"key": old["key"], "reason": "cooldown"}]), 2000)
+    assert [i["issue_key"] for i in api.incidents(s.conn)["incidents"]] == ["container_down:b", "container_down:a"]

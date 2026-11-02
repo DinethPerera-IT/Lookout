@@ -59,7 +59,9 @@ def status(conn, now, hide_containers=()):
 
 
 def incidents(conn, limit=100):
-    rows = conn.execute("SELECT * FROM incidents ORDER BY coalesce(resolved_at, last_seen) DESC, id DESC LIMIT ?",
+    # Newest event first: when it opened, or when it resolved. Not last_seen: every later run
+    # refreshes an open incident's last_seen, which would push new incidents below old ones.
+    rows = conn.execute("SELECT * FROM incidents ORDER BY coalesce(resolved_at, opened_at) DESC, id DESC LIMIT ?",
                         (limit,))
     return {"incidents": [_incident(r) for r in rows]}
 
