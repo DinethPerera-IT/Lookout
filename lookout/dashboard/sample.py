@@ -78,18 +78,37 @@ def build(cfg, end=None):
     return state, t0 - 60 * 60 + 7 * 60   # "now": 7 minutes after the last run
 
 
-def export(state, now, out=OUT, scrub=None):
-    scrub = scrub or make_scrubber()
+def from_db(path, keep):
+    """A recorded state DB, copied into memory, keeping only incidents whose key contains `keep`
+    (e.g. the demo lab), so host-specific incidents from the same hour stay out of the bundle."""
+    import sqlite3
+    src = sqlite3.connect(Path(path).resolve().as_uri() + "?mode=ro", uri=True)
+    state = State(":memory:")
+    state.commit()  # backup() needs the destination outside a transaction
+    src.backup(state.conn)
+    src.close()
+    state.conn.execute("DELETE FROM incidents WHERE instr(issue_key, ?) = 0", (keep,))
+    for run_id, snap in state.conn.execute("SELECT id, snapshot FROM runs").fetchall():
+        snap = json.loads(snap or "{}")
+        snap["failed_units"] = [u for u in snap.get("failed_units", []) if keep in u]
+        state.conn.execute("UPDATE runs SET snapshot = ? WHERE id = ?", (json.dumps(snap), run_id))
+    last = state.conn.execute("SELECT max(finished_at) FROM runs").fetchone()[0] or time.time()
+    return state, last + 5 * 60
+
+
+def export(state, now, out=OUT, scrub=None, note=None, cfg=None):
+    dash = (cfg or {}).get("dashboard", {})
+    scrub = scrub or make_scrubber(dash.get("hide_names", []))
     out.mkdir(parents=True, exist_ok=True)
     for old in out.glob("*.json"):
         old.unlink()
     conn = state.conn
-    files = {"status": api.status(conn, now), "incidents": api.incidents(conn), "runs_latest": api.runs_latest(conn),
+    files = {"status": api.status(conn, now, dash.get("hide_containers", [])), "incidents": api.incidents(conn), "runs_latest": api.runs_latest(conn),
              "benchmark": api.benchmark()}
     for item in files["incidents"]["incidents"]:
         files[f"incident-{item['id']}"] = api.incident(conn, item["id"])
-    files["manifest"] = {"generated_at": time.time(), "now": now, "synthetic": True,
-                         "note": "Synthetic demo data built from Lookout's scenario fixtures. Not from a real system."}
+    files["manifest"] = {"generated_at": time.time(), "now": now, "synthetic": note is None,
+                         "note": note or "Synthetic demo data built from Lookout's scenario fixtures. Not from a real system."}
     for name, data in files.items():
         (out / f"{name}.json").write_text(json.dumps(scrub(data), indent=1) + "\n")
     return sorted(files)
@@ -140,9 +159,20 @@ def security(bench_cases=ROOT / "bench" / "cases", proxy_cfg=ROOT / "deploy" / "
 
 def main():
     (OUT.parent / "security.json").write_text(json.dumps(security(), indent=1, ensure_ascii=False) + "\n")
-    state, now = build(config.load())
+    import argparse
+    parser = argparse.ArgumentParser(prog="lookout.dashboard.sample")
+    parser.add_argument("--from-db", help="export a recorded state DB instead of the synthetic story")
+    parser.add_argument("--keep", default="lookout-demo", help="with --from-db: keep incidents whose key contains this")
+    args = parser.parse_args()
+    if args.from_db:
+        state, now = from_db(args.from_db, args.keep)
+        note = (f"Recorded from Lookout's demo lab on {time.strftime('%Y-%m-%d')} with the real pipeline and model; "
+                f"only incidents matching '{args.keep}' are kept; scrubbed like every API response.")
+    else:
+        state, now = build(config.load())
+        note = None
     try:
-        names = export(state, now)
+        names = export(state, now, note=note, cfg=config.load())
     finally:
         state.close()
     print(f"wrote {len(names)} files to {OUT.relative_to(ROOT)}")

@@ -103,7 +103,7 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(HTTPStatus.SERVICE_UNAVAILABLE, {"error": "no data yet"})
         try:
             if name == "status":
-                data = api.status(conn, time.time())
+                data = api.status(conn, time.time(), self.server.hide_containers)
             elif name == "incidents":
                 data = api.incidents(conn)
             elif name == "incident":
@@ -135,7 +135,7 @@ class Handler(BaseHTTPRequestHandler):
                     conn = connect_ro(self.server.db_path)
                     try:
                         sig = api.signature(conn)
-                        data = api.status(conn, time.time()) if sig != last_sig else None
+                        data = api.status(conn, time.time(), self.server.hide_containers) if sig != last_sig else None
                     finally:
                         conn.close()
                 except sqlite3.Error:
@@ -164,11 +164,12 @@ class Handler(BaseHTTPRequestHandler):
         self._send(200, target.read_bytes(), ctype, {"Cache-Control": "no-cache"})
 
 
-def make_server(db_path, host="127.0.0.1", port=8088, bench_dir=api.BENCH_DIR, extra_names=()):
+def make_server(db_path, host="127.0.0.1", port=8088, bench_dir=api.BENCH_DIR, extra_names=(), hide_containers=()):
     server = ThreadingHTTPServer((host, port), Handler)
     server.daemon_threads = True
     server.db_path = db_path
     server.bench_dir = bench_dir
     server.scrub = make_scrubber(extra_names)
+    server.hide_containers = tuple(hide_containers)
     server.stopping = threading.Event()
     return server

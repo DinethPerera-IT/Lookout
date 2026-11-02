@@ -102,3 +102,6 @@ port = 8088
 # Extra words scrubbed from every API response, on top of this machine's own host name,
 # IPs and *.internal/.local/.lan/ts.net names (e.g. Tailscale machine names).
 hide_names = []
+# Containers left out of the dashboard's status grid (e.g. ones you'd rather not advertise on
+# a public screen). Detection is unaffected: their incidents are still recorded and reported.
+hide_containers = []

@@ -254,3 +254,33 @@ def test_a_good_answer_about_a_classified_crash_passes():
     answer, problems = llm.validate(good, [entry])
     assert problems == []
     assert llm.picked_checks(answer["alerts"][0]["checks"], entry["next_checks"]) == ["all_containers", "logs"]
+
+
+def test_an_answer_that_contradicts_the_classification_is_rejected():
+    """Seen live: llama3.2:3b called the port_in_use crash an OOM kill."""
+    ev = json.loads((FIXTURES / "demo_port.json").read_text())["evidence"]
+    cause, matches = crash.classify(ev)
+    entry = {"key": "container_down:lookout-demo-port", "severity": "crit",
+             "summary": "Container lookout-demo-port is not running (Exited (1) 3 seconds ago); it was running before",
+             "cause": cause, "cause_matches": matches, "crash": ev, "evidence": ev["log_lines"],
+             "next_checks": crash.next_checks("container", "lookout-demo-port", cause)}
+    seen_live = json.dumps({"summary": "Container lookout-demo-port stopped.", "alerts": [{"id": "F1", "explanation":
+        "The container lookout-demo-port exited with an exit code of 1 after being in use for 3 seconds, indicating it "
+        "was killed by the kernel OOM killer. The cause is that the port was already in use.", "checks": ["K1"]}]})
+    answer, problems = llm.validate(seen_live, [entry])
+    assert answer is None and any(p.startswith("contradicts the classification") for p in problems)
+    assert "OOM" not in llm.alert_lines([entry])                     # no longer primed by the prompt
+    fine = json.dumps({"summary": "Container lookout-demo-port stopped.", "alerts": [{"id": "F1", "explanation":
+        "The logs show the app tried to listen on port 8080, which another listener already held, so it exited.",
+        "checks": ["K1"]}]})
+    assert llm.validate(fine, [entry])[1] == []
+
+
+def test_oom_wording_is_fine_when_code_said_oom():
+    ev = json.loads((FIXTURES / "demo_oom.json").read_text())["evidence"]
+    cause, matches = crash.classify(ev)
+    entry = {"key": "container_down:lookout-demo-oom", "severity": "crit", "summary": "Container lookout-demo-oom is not running",
+             "cause": cause, "cause_matches": matches, "crash": ev, "evidence": ev["log_lines"]}
+    ok = json.dumps({"summary": "It ran out of memory.", "alerts": [{"id": "F1", "explanation":
+        "The kernel OOM killer stopped it after it exceeded its memory limit."}]})
+    assert llm.validate(ok, [entry])[1] == []

@@ -84,6 +84,13 @@ HEDGING = re.compile(
     r"(?i)\b(?:might|may|could|possibly|perhaps|seems? to|appears? to)\s+(?:also\s+|have\s+|be\s+|been\s+)*"
     r"(?:down|failed|failing|full|stopped|crashed|offline|unreachable|unhealthy|restarting|broken|out of)\b")
 
+# Claiming a different cause than the one code decided. Only the two that are facts about the
+# machine (memory, disk) are checked: talking about ports or dependencies in passing is fine.
+CAUSE_CLAIMS = {
+    "out_of_memory": re.compile(r"(?i)\b(?:OOM|out[- ]of[- ]memory|ran out of memory|memory limit)"),
+    "disk_full": re.compile(r"(?i)\b(?:disk (?:is |was )?full|no space left|ran out of (?:disk )?space)"),
+}
+
 _NUMBER = re.compile(r"(?<![\w.])\d+(?:\.\d+)?(?![\w])")
 _ALERT_ID = re.compile(r"\bF\d+\b")
 _SPELLED = {w: i for i, w in enumerate("zero one two three four five six seven eight nine ten eleven twelve".split())}
@@ -103,7 +110,8 @@ def crash_facts(crash):
         parts.append(f"exit code {crash['exit_code']}")
     if crash.get("result"):
         parts.append(f"systemd result {crash['result']}")
-    parts.append("killed by the kernel OOM killer: " + ("yes" if crash.get("oom_killed") else "no evidence"))
+    if crash.get("oom_killed"):  # only mentioned when true: small models latch onto the words otherwise
+        parts.append("killed by the kernel OOM killer")
     return "; ".join(parts)
 
 
@@ -227,6 +235,11 @@ def validate(raw, flags):
         problems.append(f"suggests a command: {m.group(0)!r}")
     if m := INJECTION_ECHO.search(output):
         problems.append(f"repeats untrusted content: {m.group(0)!r}")
+    by_id = {a["id"].strip(): a["explanation"] for a in answer["alerts"]}
+    for i, f in enumerate(flags, 1):
+        for cause, claim in CAUSE_CLAIMS.items():
+            if f.get("cause") and f["cause"] != cause and (m := claim.search(by_id.get(f"F{i}", ""))):
+                problems.append(f"contradicts the classification: {m.group(0)!r} but code decided {f['cause']}")
     return (None if problems else answer), problems
 
 

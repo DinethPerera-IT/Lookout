@@ -1,22 +1,22 @@
 {
  "run": {
-  "id": 21,
-  "started_at": 1793588394.0,
-  "finished_at": 1793588400.0,
-  "mode": "live",
-  "collect_ms": 5400.0,
-  "detect_ms": 38.0,
-  "llm_ms": null,
-  "report_ms": 310.0,
+  "id": 6,
+  "started_at": 1793593066.7806926,
+  "finished_at": 1793593072.812994,
+  "mode": "shadow",
+  "collect_ms": 5983.351707458496,
+  "detect_ms": 48.553466796875,
+  "llm_ms": 63121.29807472229,
+  "report_ms": 0.14281272888183594,
   "flags": 3,
-  "reported": 2,
-  "suppressed": 1,
-  "resolved": 1,
-  "delivered": 1,
-  "ai_status": null,
-  "model": null,
+  "reported": 1,
+  "suppressed": 2,
+  "resolved": 0,
+  "delivered": 0,
+  "ai_status": "ok",
+  "model": "llama3.2:3b",
   "snapshot": {
-   "log_lines": 0,
+   "log_lines": 2465,
    "collectors": {
     "host": true,
     "prometheus": true,
@@ -25,26 +25,46 @@
     "docker": true
    },
    "host": {
-    "memory_available_pct": 74.0,
-    "load15": 1.7,
+    "memory_available_pct": 74.7,
+    "load15": 3.06005859375,
     "cpus": 4,
     "disks": [
      {
       "mountpoint": "/",
-      "used_pct": 70.0
+      "used_pct": 34.4
+     },
+     {
+      "mountpoint": "/boot/efi",
+      "used_pct": 0.6
      }
     ],
-    "boot_time": null
+    "boot_time": 1792091497
    },
-   "failed_units": [
-    "caddy.service"
-   ],
+   "failed_units": [],
    "containers": [
+    {
+     "name": "aotearoa",
+     "state": "running",
+     "health": "healthy",
+     "status": "Up 2 weeks (healthy)"
+    },
+    {
+     "name": "commoncents",
+     "state": "running",
+     "health": "none",
+     "status": "Up 2 weeks"
+    },
+    {
+     "name": "commoncents-db",
+     "state": "running",
+     "health": "healthy",
+     "status": "Up 2 weeks (healthy)"
+    },
     {
      "name": "docker-socket-proxy",
      "state": "running",
      "health": "none",
-     "status": "Up 2 weeks"
+     "status": "Up 19 minutes"
     },
     {
      "name": "grafana",
@@ -55,14 +75,38 @@
     {
      "name": "homepage",
      "state": "running",
+     "health": "healthy",
+     "status": "Up 2 weeks (healthy)"
+    },
+    {
+     "name": "private-app-1",
+     "state": "running",
      "health": "none",
      "status": "Up 2 weeks"
     },
     {
-     "name": "netdata",
+     "name": "private-db-1",
+     "state": "running",
+     "health": "healthy",
+     "status": "Up 2 weeks (healthy)"
+    },
+    {
+     "name": "lookout-demo-db",
      "state": "running",
      "health": "none",
-     "status": "Up 2 weeks"
+     "status": "Up 24 seconds"
+    },
+    {
+     "name": "lookout-demo-oom",
+     "state": "running",
+     "health": "none",
+     "status": "Up 24 seconds"
+    },
+    {
+     "name": "lookout-demo-port",
+     "state": "exited",
+     "health": "none",
+     "status": "Exited (1) 3 seconds ago"
     },
     {
      "name": "node-exporter",
@@ -74,13 +118,7 @@
      "name": "open-webui",
      "state": "running",
      "health": "healthy",
-     "status": "Up 2 weeks"
-    },
-    {
-     "name": "pihole",
-     "state": "running",
-     "health": "healthy",
-     "status": "Up 2 weeks"
+     "status": "Up 2 weeks (healthy)"
     },
     {
      "name": "portainer",
@@ -97,330 +135,105 @@
     {
      "name": "uptime-kuma",
      "state": "running",
-     "health": "none",
-     "status": "Up 2 weeks"
+     "health": "healthy",
+     "status": "Up 2 weeks (healthy)"
     }
    ]
   },
-  "trigger": null,
-  "duration_ms": 6000.0,
-  "classified": 0
+  "trigger": "docker die lookout-demo-port",
+  "duration_ms": 6032.301425933838,
+  "classified": 1
  },
  "recent": [
   {
    "id": 1,
-   "finished_at": 1793420400.0,
-   "started_at": 1793420394.0,
-   "flags": 1,
-   "reported": 1,
+   "finished_at": 1793592780.4059885,
+   "started_at": 1793592766.4341438,
+   "flags": 7,
+   "reported": 7,
    "suppressed": 0,
    "resolved": 0,
    "ai_status": null,
-   "collect_ms": 5400.0,
-   "detect_ms": 38.0,
+   "collect_ms": 6025.769233703613,
+   "detect_ms": 7945.71852684021,
    "llm_ms": null,
-   "report_ms": 310.0,
-   "trigger": null
+   "report_ms": 0.12683868408203125,
+   "trigger": "baseline before the demo"
   },
   {
    "id": 2,
-   "finished_at": 1793424000.0,
-   "started_at": 1793423994.0,
-   "flags": 1,
-   "reported": 0,
-   "suppressed": 1,
+   "finished_at": 1793592801.4121974,
+   "started_at": 1793592795.3757944,
+   "flags": 3,
+   "reported": 1,
+   "suppressed": 2,
    "resolved": 0,
-   "ai_status": null,
-   "collect_ms": 5400.0,
-   "detect_ms": 38.0,
-   "llm_ms": null,
-   "report_ms": 0.0,
-   "trigger": null
+   "ai_status": "ok",
+   "collect_ms": 5993.89910697937,
+   "detect_ms": 42.318105697631836,
+   "llm_ms": 63355.461835861206,
+   "report_ms": 0.09441375732421875,
+   "trigger": "docker oom lookout-demo-oom, die lookout-demo-oom"
   },
   {
    "id": 3,
-   "finished_at": 1793427600.0,
-   "started_at": 1793427594.0,
-   "flags": 1,
+   "finished_at": 1793592885.939731,
+   "started_at": 1793592879.7610018,
+   "flags": 4,
    "reported": 1,
-   "suppressed": 0,
+   "suppressed": 3,
    "resolved": 0,
-   "ai_status": null,
-   "collect_ms": 5400.0,
-   "detect_ms": 38.0,
-   "llm_ms": null,
-   "report_ms": 310.0,
-   "trigger": null
+   "ai_status": "ok",
+   "collect_ms": 6136.69228553772,
+   "detect_ms": 41.82553291320801,
+   "llm_ms": 50561.344146728516,
+   "report_ms": 0.06318092346191406,
+   "trigger": "docker die lookout-demo-db"
   },
   {
    "id": 4,
-   "finished_at": 1793431200.0,
-   "started_at": 1793431194.0,
-   "flags": 1,
-   "reported": 0,
-   "suppressed": 1,
+   "finished_at": 1793592946.6986914,
+   "started_at": 1793592940.5289605,
+   "flags": 5,
+   "reported": 1,
+   "suppressed": 4,
    "resolved": 0,
-   "ai_status": null,
-   "collect_ms": 5400.0,
-   "detect_ms": 38.0,
-   "llm_ms": null,
-   "report_ms": 0.0,
-   "trigger": null
+   "ai_status": "ok",
+   "collect_ms": 6137.855052947998,
+   "detect_ms": 31.726360321044922,
+   "llm_ms": 50772.21488952637,
+   "report_ms": 0.061511993408203125,
+   "trigger": "docker die lookout-demo-port"
   },
   {
    "id": 5,
-   "finished_at": 1793516400.0,
-   "started_at": 1793516394.0,
-   "flags": 1,
-   "reported": 1,
-   "suppressed": 0,
-   "resolved": 0,
+   "finished_at": 1793593052.1653528,
+   "started_at": 1793593046.2124915,
+   "flags": 2,
+   "reported": 0,
+   "suppressed": 2,
+   "resolved": 3,
    "ai_status": null,
-   "collect_ms": 5400.0,
-   "detect_ms": 38.0,
+   "collect_ms": 5950.693607330322,
+   "detect_ms": 2.0170211791992188,
    "llm_ms": null,
-   "report_ms": 310.0,
-   "trigger": null
+   "report_ms": 0.09369850158691406,
+   "trigger": "docker start lookout-demo-oom, start lookout-demo-port, start lookout-demo-db"
   },
   {
    "id": 6,
-   "finished_at": 1793520000.0,
-   "started_at": 1793519994.0,
-   "flags": 0,
-   "reported": 0,
-   "suppressed": 0,
-   "resolved": 1,
-   "ai_status": null,
-   "collect_ms": 5400.0,
-   "detect_ms": 38.0,
-   "llm_ms": null,
-   "report_ms": 310.0,
-   "trigger": null
-  },
-  {
-   "id": 7,
-   "finished_at": 1793523600.0,
-   "started_at": 1793523594.0,
-   "flags": 0,
-   "reported": 0,
-   "suppressed": 0,
-   "resolved": 0,
-   "ai_status": null,
-   "collect_ms": 5400.0,
-   "detect_ms": 38.0,
-   "llm_ms": null,
-   "report_ms": 0.0,
-   "trigger": null
-  },
-  {
-   "id": 8,
-   "finished_at": 1793527200.0,
-   "started_at": 1793527194.0,
-   "flags": 1,
-   "reported": 1,
-   "suppressed": 0,
-   "resolved": 0,
-   "ai_status": null,
-   "collect_ms": 5400.0,
-   "detect_ms": 38.0,
-   "llm_ms": null,
-   "report_ms": 310.0,
-   "trigger": null
-  },
-  {
-   "id": 9,
-   "finished_at": 1793530800.0,
-   "started_at": 1793530794.0,
-   "flags": 1,
-   "reported": 0,
-   "suppressed": 1,
-   "resolved": 0,
-   "ai_status": null,
-   "collect_ms": 5400.0,
-   "detect_ms": 38.0,
-   "llm_ms": null,
-   "report_ms": 0.0,
-   "trigger": null
-  },
-  {
-   "id": 10,
-   "finished_at": 1793534400.0,
-   "started_at": 1793534394.0,
-   "flags": 0,
-   "reported": 0,
-   "suppressed": 0,
-   "resolved": 1,
-   "ai_status": null,
-   "collect_ms": 5400.0,
-   "detect_ms": 38.0,
-   "llm_ms": null,
-   "report_ms": 310.0,
-   "trigger": null
-  },
-  {
-   "id": 11,
-   "finished_at": 1793538000.0,
-   "started_at": 1793537994.0,
-   "flags": 1,
-   "reported": 1,
-   "suppressed": 0,
-   "resolved": 0,
-   "ai_status": null,
-   "collect_ms": 5400.0,
-   "detect_ms": 38.0,
-   "llm_ms": null,
-   "report_ms": 310.0,
-   "trigger": null
-  },
-  {
-   "id": 12,
-   "finished_at": 1793541600.0,
-   "started_at": 1793541594.0,
-   "flags": 1,
-   "reported": 1,
-   "suppressed": 0,
-   "resolved": 1,
-   "ai_status": null,
-   "collect_ms": 5400.0,
-   "detect_ms": 38.0,
-   "llm_ms": null,
-   "report_ms": 310.0,
-   "trigger": null
-  },
-  {
-   "id": 13,
-   "finished_at": 1793545200.0,
-   "started_at": 1793545194.0,
-   "flags": 1,
-   "reported": 1,
-   "suppressed": 0,
-   "resolved": 0,
-   "ai_status": null,
-   "collect_ms": 5400.0,
-   "detect_ms": 38.0,
-   "llm_ms": null,
-   "report_ms": 310.0,
-   "trigger": null
-  },
-  {
-   "id": 14,
-   "finished_at": 1793548800.0,
-   "started_at": 1793548794.0,
-   "flags": 1,
-   "reported": 1,
-   "suppressed": 0,
-   "resolved": 0,
-   "ai_status": null,
-   "collect_ms": 5400.0,
-   "detect_ms": 38.0,
-   "llm_ms": null,
-   "report_ms": 310.0,
-   "trigger": null
-  },
-  {
-   "id": 15,
-   "finished_at": 1793552400.0,
-   "started_at": 1793552394.0,
-   "flags": 0,
-   "reported": 0,
-   "suppressed": 0,
-   "resolved": 0,
-   "ai_status": null,
-   "collect_ms": 5400.0,
-   "detect_ms": 38.0,
-   "llm_ms": null,
-   "report_ms": 0.0,
-   "trigger": null
-  },
-  {
-   "id": 16,
-   "finished_at": 1793556000.0,
-   "started_at": 1793555994.0,
-   "flags": 1,
-   "reported": 0,
-   "suppressed": 1,
-   "resolved": 0,
-   "ai_status": null,
-   "collect_ms": 5400.0,
-   "detect_ms": 38.0,
-   "llm_ms": null,
-   "report_ms": 0.0,
-   "trigger": null
-  },
-  {
-   "id": 17,
-   "finished_at": 1793574000.0,
-   "started_at": 1793573994.0,
-   "flags": 1,
-   "reported": 1,
-   "suppressed": 0,
-   "resolved": 0,
-   "ai_status": null,
-   "collect_ms": 5400.0,
-   "detect_ms": 38.0,
-   "llm_ms": null,
-   "report_ms": 310.0,
-   "trigger": null
-  },
-  {
-   "id": 18,
-   "finished_at": 1793577600.0,
-   "started_at": 1793577594.0,
-   "flags": 1,
-   "reported": 1,
-   "suppressed": 0,
-   "resolved": 0,
-   "ai_status": null,
-   "collect_ms": 5400.0,
-   "detect_ms": 38.0,
-   "llm_ms": null,
-   "report_ms": 310.0,
-   "trigger": null
-  },
-  {
-   "id": 19,
-   "finished_at": 1793581200.0,
-   "started_at": 1793581194.0,
-   "flags": 0,
-   "reported": 0,
-   "suppressed": 0,
-   "resolved": 0,
-   "ai_status": null,
-   "collect_ms": 5400.0,
-   "detect_ms": 38.0,
-   "llm_ms": null,
-   "report_ms": 0.0,
-   "trigger": null
-  },
-  {
-   "id": 20,
-   "finished_at": 1793584800.0,
-   "started_at": 1793584794.0,
-   "flags": 2,
-   "reported": 1,
-   "suppressed": 1,
-   "resolved": 0,
-   "ai_status": null,
-   "collect_ms": 5400.0,
-   "detect_ms": 38.0,
-   "llm_ms": null,
-   "report_ms": 310.0,
-   "trigger": null
-  },
-  {
-   "id": 21,
-   "finished_at": 1793588400.0,
-   "started_at": 1793588394.0,
+   "finished_at": 1793593072.812994,
+   "started_at": 1793593066.7806926,
    "flags": 3,
-   "reported": 2,
-   "suppressed": 1,
-   "resolved": 1,
-   "ai_status": null,
-   "collect_ms": 5400.0,
-   "detect_ms": 38.0,
-   "llm_ms": null,
-   "report_ms": 310.0,
-   "trigger": null
+   "reported": 1,
+   "suppressed": 2,
+   "resolved": 0,
+   "ai_status": "ok",
+   "collect_ms": 5983.351707458496,
+   "detect_ms": 48.553466796875,
+   "llm_ms": 63121.29807472229,
+   "report_ms": 0.14281272888183594,
+   "trigger": "docker die lookout-demo-port"
   }
  ]
 }

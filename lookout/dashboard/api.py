@@ -37,8 +37,11 @@ def latest_run(conn):
     return _run(conn.execute("SELECT * FROM runs ORDER BY id DESC LIMIT 1").fetchone())
 
 
-def status(conn, now):
+def status(conn, now, hide_containers=()):
     run = latest_run(conn)
+    if run and run["snapshot"] and hide_containers:
+        run["snapshot"]["containers"] = [c for c in run["snapshot"].get("containers", [])
+                                         if c["name"] not in hide_containers]
     counts = {r["severity"]: r["n"] for r in conn.execute(
         "SELECT severity, count(*) AS n FROM incidents WHERE status = 'open' GROUP BY severity")}
     age = None if run is None else max(0.0, now - run["finished_at"])

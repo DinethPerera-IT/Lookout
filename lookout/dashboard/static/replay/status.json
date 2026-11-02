@@ -1,18 +1,18 @@
 {
- "now": 1793588820.0,
+ "now": 1793593372.812994,
  "heartbeat": {
-  "last_run_at": 1793588400.0,
-  "age_s": 420.0,
+  "last_run_at": 1793593072.812994,
+  "age_s": 300.0,
   "stale": false,
-  "mode": "live"
+  "mode": "shadow"
  },
  "open": {
   "crit": 1,
-  "warn": 3
+  "warn": 0
  },
- "runs_24h": 17,
+ "runs_24h": 6,
  "snapshot": {
-  "log_lines": 0,
+  "log_lines": 2465,
   "collectors": {
    "host": true,
    "prometheus": true,
@@ -21,26 +21,46 @@
    "docker": true
   },
   "host": {
-   "memory_available_pct": 74.0,
-   "load15": 1.7,
+   "memory_available_pct": 74.7,
+   "load15": 3.06005859375,
    "cpus": 4,
    "disks": [
     {
      "mountpoint": "/",
-     "used_pct": 70.0
+     "used_pct": 34.4
+    },
+    {
+     "mountpoint": "/boot/efi",
+     "used_pct": 0.6
     }
    ],
-   "boot_time": null
+   "boot_time": 1792091497
   },
-  "failed_units": [
-   "caddy.service"
-  ],
+  "failed_units": [],
   "containers": [
+   {
+    "name": "aotearoa",
+    "state": "running",
+    "health": "healthy",
+    "status": "Up 2 weeks (healthy)"
+   },
+   {
+    "name": "commoncents",
+    "state": "running",
+    "health": "none",
+    "status": "Up 2 weeks"
+   },
+   {
+    "name": "commoncents-db",
+    "state": "running",
+    "health": "healthy",
+    "status": "Up 2 weeks (healthy)"
+   },
    {
     "name": "docker-socket-proxy",
     "state": "running",
     "health": "none",
-    "status": "Up 2 weeks"
+    "status": "Up 19 minutes"
    },
    {
     "name": "grafana",
@@ -51,14 +71,38 @@
    {
     "name": "homepage",
     "state": "running",
+    "health": "healthy",
+    "status": "Up 2 weeks (healthy)"
+   },
+   {
+    "name": "private-app-1",
+    "state": "running",
     "health": "none",
     "status": "Up 2 weeks"
    },
    {
-    "name": "netdata",
+    "name": "private-db-1",
+    "state": "running",
+    "health": "healthy",
+    "status": "Up 2 weeks (healthy)"
+   },
+   {
+    "name": "lookout-demo-db",
     "state": "running",
     "health": "none",
-    "status": "Up 2 weeks"
+    "status": "Up 24 seconds"
+   },
+   {
+    "name": "lookout-demo-oom",
+    "state": "running",
+    "health": "none",
+    "status": "Up 24 seconds"
+   },
+   {
+    "name": "lookout-demo-port",
+    "state": "exited",
+    "health": "none",
+    "status": "Exited (1) 3 seconds ago"
    },
    {
     "name": "node-exporter",
@@ -70,13 +114,7 @@
     "name": "open-webui",
     "state": "running",
     "health": "healthy",
-    "status": "Up 2 weeks"
-   },
-   {
-    "name": "pihole",
-    "state": "running",
-    "health": "healthy",
-    "status": "Up 2 weeks"
+    "status": "Up 2 weeks (healthy)"
    },
    {
     "name": "portainer",
@@ -93,8 +131,8 @@
    {
     "name": "uptime-kuma",
     "state": "running",
-    "health": "none",
-    "status": "Up 2 weeks"
+    "health": "healthy",
+    "status": "Up 2 weeks (healthy)"
    }
   ]
  }

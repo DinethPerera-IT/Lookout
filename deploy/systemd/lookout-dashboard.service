@@ -1,0 +1,51 @@
+# Lookout dashboard: read-only web UI on 127.0.0.1:8088 (Caddy fronts it on the LAN).
+# Runs as user lookout only so it can *read* /var/lib/lookout/state.sqlite (mode 0700);
+# the database is opened with mode=ro and the whole filesystem is read-only. No secrets:
+# it needs none, so there is no EnvironmentFile.
+[Unit]
+Description=Lookout dashboard (read-only)
+Documentation=https://github.com/DinethPerera-IT
+After=network.target
+
+[Service]
+Type=simple
+User=lookout
+Group=lookout
+WorkingDirectory=/opt/lookout
+Environment=PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
+ExecStart=/usr/bin/python3 -m lookout.dashboard --db /var/lib/lookout/state.sqlite --bind 127.0.0.1 --port 8088
+Restart=on-failure
+RestartSec=5
+ReadOnlyPaths=/var/lib/lookout
+MemoryMax=256M
+
+# --- Sandboxing: enforced by the kernel, not by trusting Lookout's code ---
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+ProtectProc=invisible
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+RemoveIPC=yes
+# Unix sockets (systemctl, journal) and TCP/IP (localhost services + Discord). Nothing else.
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged @resources
+SystemCallErrorNumber=EPERM
+
+[Install]
+WantedBy=multi-user.target

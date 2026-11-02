@@ -1,32 +1,136 @@
 {
  "id": 8,
- "issue_key": "failed_unit:caddy.service",
- "rule": "failed_unit",
+ "issue_key": "container_down:lookout-demo-oom",
+ "rule": "container",
  "kind": "state",
  "severity": "crit",
- "summary": "systemd unit caddy.service has failed (failed/failed)",
- "status": "open",
- "opened_run": 21,
- "opened_at": 1793588400.0,
- "last_seen": 1793588400.0,
- "resolved_at": null,
- "failed_at": null,
- "detected_at": 1793588400.0,
- "time_to_detect_s": null,
- "evidence": [],
- "cause": null,
- "cause_matches": [],
- "ai_status": null,
- "ai_model": null,
- "ai_summary": null,
- "ai_explanation": null,
- "next_checks": [],
- "updates": [
+ "summary": "Container lookout-demo-oom is not running (Exited (137) 3 seconds ago); it was running before",
+ "status": "resolved",
+ "opened_run": 2,
+ "opened_at": 1793592801.3696935,
+ "last_seen": 1793592946.6986914,
+ "resolved_at": 1793593052.1653528,
+ "failed_at": 1793592791.947845,
+ "detected_at": 1793592801.3696935,
+ "time_to_detect_s": 9.42184853553772,
+ "evidence": [
+  "2026-11-02T04:12:43.352Z [oom] service started, serving requests",
+  "2026-11-02T04:13:03.377Z [oom] health check ok",
+  "2026-11-02T04:13:09.125Z [oom] loading report cache into memory",
+  "2026-11-02T04:13:09.331Z [oom] report cache: 4 MB",
+  "2026-11-02T04:13:09.533Z [oom] report cache: 8 MB",
+  "2026-11-02T04:13:09.733Z [oom] report cache: 12 MB",
+  "2026-11-02T04:13:09.936Z [oom] report cache: 16 MB",
+  "2026-11-02T04:13:10.137Z [oom] report cache: 20 MB",
+  "2026-11-02T04:13:10.338Z [oom] report cache: 24 MB",
+  "2026-11-02T04:13:10.537Z [oom] report cache: 28 MB",
+  "2026-11-02T04:13:10.739Z [oom] report cache: 32 MB",
+  "2026-11-02T04:13:10.939Z [oom] report cache: 36 MB",
+  "2026-11-02T04:13:11.139Z [oom] report cache: 40 MB",
+  "2026-11-02T04:13:11.336Z [oom] report cache: 44 MB",
+  "2026-11-02T04:13:11.535Z [oom] report cache: 48 MB",
+  "2026-11-02T04:13:11.737Z [oom] report cache: 52 MB"
+ ],
+ "cause": "out_of_memory",
+ "cause_matches": [
   {
-   "at": 1793588400.0,
-   "reason": "new",
-   "severity": "crit"
+   "signal": "OOMKilled",
+   "detail": "the container was killed for exceeding its memory limit"
+  },
+  {
+   "signal": "kernel OOM killer",
+   "detail": "oom-kill:constraint=CONSTRAINT_MEMCG,nodemask=(null),cpuset=docker-<token>.scope,mems_allowed=0,oom_memcg=/system.slice/docker-<token>.scope,task_memcg=/system.slice/docker-<token>.scope,task=node,pid"
+  },
+  {
+   "signal": "kernel OOM killer",
+   "detail": "Memory cgroup out of memory: Killed process 3524458 (node) total-vm:745352kB, anon-rss:64356kB, file-rss:41944kB, shmem-rss:0kB, UID:1000 pgtables:680kB oom_score_adj:0"
+  },
+  {
+   "signal": "exit code 137",
+   "detail": "128 + 9: killed with SIGKILL, which is what the OOM killer sends"
+  },
+  {
+   "signal": "also: recent change",
+   "detail": "container lookout-demo-oom was (re)created from image lookout-demo-app:local, 30 s before the failure"
   }
  ],
- "crash": null
+ "ai_status": "ok",
+ "ai_model": "llama3.2:3b",
+ "ai_summary": "Container lookout-demo-oom is not running due to out of memory",
+ "ai_explanation": "The container was killed by the kernel OOM killer because it exceeded its memory limit.",
+ "next_checks": [
+  {
+   "id": "kernel_oom",
+   "command": "journalctl -k --since -2h --grep \"out of memory\"",
+   "why": "the kernel's OOM-killer messages"
+  },
+  {
+   "id": "stats",
+   "command": "docker stats --no-stream lookout-demo-oom",
+   "why": "memory use against the limit (once it runs again)"
+  },
+  {
+   "id": "logs",
+   "command": "docker logs --tail 50 lookout-demo-oom",
+   "why": "the last log lines, including any stack trace"
+  }
+ ],
+ "updates": [
+  {
+   "at": 1793592801.3696935,
+   "reason": "new",
+   "severity": "crit"
+  },
+  {
+   "at": 1793593052.1653528,
+   "reason": "resolved",
+   "severity": null
+  }
+ ],
+ "crash": {
+  "target": {
+   "kind": "container",
+   "name": "lookout-demo-oom",
+   "image": "lookout-demo-app:local",
+   "created": 1793592762,
+   "compose_files": [
+    "/home/<host>/ops-summary/deploy/demo/compose.yaml"
+   ]
+  },
+  "exit_code": 137,
+  "oom_killed": true,
+  "restart_count": null,
+  "result": null,
+  "kernel_oom": [
+   "oom-kill:constraint=CONSTRAINT_MEMCG,nodemask=(null),cpuset=docker-<token>.scope,mems_allowed=0,oom_memcg=/system.slice/docker-<token>.scope,task_memcg=/system.slice/docker-<token>.scope,task=node,pid=3524458,uid=1000",
+   "Memory cgroup out of memory: Killed process 3524458 (node) total-vm:745352kB, anon-rss:64356kB, file-rss:41944kB, shmem-rss:0kB, UID:1000 pgtables:680kB oom_score_adj:0"
+  ],
+  "host": {
+   "memory_available_pct": 74.8,
+   "disk_used_pct": {
+    "/": 34.4,
+    "/boot/efi": 0.6
+   }
+  },
+  "recent_changes": [
+   {
+    "at": 1793592762.0,
+    "kind": "container",
+    "what": "container lookout-demo-oom was (re)created from image lookout-demo-app:local",
+    "summary": "container lookout-demo-oom was (re)created from image lookout-demo-app:local, 30 s before the failure"
+   },
+   {
+    "at": 1793590558.584779,
+    "kind": "config",
+    "what": "/home/<host>/ops-summary/deploy/demo/compose.yaml was modified",
+    "summary": "/home/<host>/ops-summary/deploy/demo/compose.yaml was modified, 37 min before the failure"
+   },
+   {
+    "at": 1793516958.0,
+    "kind": "apt",
+    "what": "apt: upgraded 16 packages (netdata-plugin-apps, netdata-plugin-nfacct, netdata-plugin-slabinfo, +13 more)",
+    "summary": "apt: upgraded 16 packages (netdata-plugin-apps, netdata-plugin-nfacct, netdata-plugin-slabinfo, +13 more), 21 h before the failure"
+   }
+  ]
+ }
 }

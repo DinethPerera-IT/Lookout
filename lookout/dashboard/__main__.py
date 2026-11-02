@@ -20,7 +20,8 @@ def main(argv=None):
               (Path(os.environ["STATE_DIRECTORY"]) / "state.sqlite" if os.environ.get("STATE_DIRECTORY") else
                Path(cfg["state"]["default_path"]).expanduser()))
     host, port = args.bind or dash.get("bind", "127.0.0.1"), args.port or dash.get("port", 8088)
-    server = make_server(db, host, port, extra_names=dash.get("hide_names", []))
+    server = make_server(db, host, port, extra_names=dash.get("hide_names", []),
+                         hide_containers=dash.get("hide_containers", []))
     print(f"lookout dashboard: http://{host}:{port}/ (read-only{'' if db.exists() else ', no data yet: replay mode'})")
     try:
         server.serve_forever()

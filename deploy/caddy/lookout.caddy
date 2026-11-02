@@ -1,0 +1,19 @@
+# Lookout dashboard on the LAN and Tailscale only. NOT for the Cloudflare tunnel.
+# Add to /etc/caddy/Caddyfile (after backing it up), then:
+#   caddy validate --config /etc/caddy/Caddyfile && sudo systemctl reload caddy
+# and a Pi-hole local DNS record: lookout.home.internal -> the server.
+#
+# Why it can't leak through the tunnel: cloudflared only forwards the public hostnames
+# configured in ~/.cloudflared (projectaotearoa.com, dinethperera.com). This block only
+# answers Host "lookout.home.internal", so tunnel traffic never matches it. The
+# remote_ip guard is an extra layer for anyone on the wrong network; note it can't tell
+# tunnel traffic apart on its own (cloudflared connects from 127.0.0.1), so never add
+# this hostname to the tunnel config.
+lookout.home.internal:80 {
+    @outside not remote_ip private_ranges 100.64.0.0/10
+    respond @outside "Forbidden" 403
+
+    reverse_proxy 127.0.0.1:8088 {
+        flush_interval -1          # Server-Sent Events: pass each update through at once
+    }
+}

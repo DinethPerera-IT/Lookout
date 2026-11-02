@@ -24,9 +24,11 @@ const LookoutData = (() => {
     if (!state.replay) {
       try {
         const r = await fetch(path, { cache: "no-store" });
-        if (r.ok) return await r.json();
-        if (r.status === 404) return null;
-        // 503 = no data yet (fresh install): fall through to replay
+        const json = (r.headers.get("Content-Type") || "").startsWith("application/json");
+        if (r.ok && json) return await r.json();
+        if (r.status === 404 && json) return null;    // Lookout's API: "no such incident"
+        // Anything else means there is no Lookout API here: a static file server (offline,
+        // python3 -m http.server answers 404 in HTML) or 503 = no data yet. Use replay.
       } catch (e) { /* unreachable: fall through */ }
       switchToReplay();
     }

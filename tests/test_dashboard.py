@@ -219,7 +219,16 @@ def test_bundled_replay_dataset_leaks_nothing():
 
 
 def test_replay_dataset_is_current(tmp_path, cfg):
-    """The bundled files match what the builder produces now (rebuild after changing the API)."""
+    """The bundled files match what the builder produces now (rebuild after changing the API).
+    A recorded bundle (--from-db) can't be rebuilt here; its shape is checked instead."""
+    manifest = json.loads((REPLAY / "manifest.json").read_text())
+    if not manifest["synthetic"]:
+        status = json.loads((REPLAY / "status.json").read_text())
+        incidents = json.loads((REPLAY / "incidents.json").read_text())["incidents"]
+        assert status["heartbeat"]["last_run_at"] and incidents
+        assert all("lookout-demo" in i["issue_key"] for i in incidents)
+        assert all((REPLAY / f"incident-{i['id']}.json").exists() for i in incidents)
+        return
     state, now = sample.build(cfg, end=json.loads((REPLAY / "manifest.json").read_text())["now"] - 7 * 60 + 3600)
     try:
         sample.export(state, now, tmp_path)
@@ -278,3 +287,21 @@ def test_proxy_proof_is_recorded_not_run_from_the_dashboard():
     assert record["passed"] == record["total"] and any(c["method"] == "POST" for c in record["checks"])
     server_code = (STATIC.parent / "server.py").read_text() + (STATIC.parent / "api.py").read_text()
     assert "2375" not in server_code and "proxy_url" not in server_code   # the dashboard never talks to Docker
+
+
+def test_hidden_containers_stay_off_the_grid_but_nothing_else_changes(tmp_path):
+    db = tmp_path / "state.sqlite"
+    s = State(db)
+    history.record(s.conn, started_at=1, finished_at=2, mode="live", timings={}, result=result(), ai=None,
+                   delivered=False, snapshot={"containers": [{"name": "private-app-db", "state": "running"},
+                                                              {"name": "grafana", "state": "running"}]})
+    s.commit()
+    s.close()
+    srv = make_server(db, "127.0.0.1", 0, hide_containers=["private-app-db"])
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    try:
+        body = get(srv, "/api/status")[2].decode()
+    finally:
+        srv.shutdown()
+        srv.server_close()
+    assert "private-app-db" not in body and "grafana" in body
