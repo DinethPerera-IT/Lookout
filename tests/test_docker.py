@@ -42,7 +42,9 @@ def fake_fetch(calls):
 
 def test_list_keeps_only_needed_fields(cfg):
     containers = docker.list_containers(cfg, fake_fetch([]))
-    assert {tuple(sorted(c)) for c in containers} == {("health", "id", "image", "name", "state", "status")}
+    assert {tuple(sorted(c)) for c in containers} == {
+        ("compose_files", "created", "health", "id", "image", "name", "state", "status")}
+    assert "Labels" not in json.dumps(containers)              # only the compose file path is kept from labels
     kuma = next(c for c in containers if c["name"] == "uptime-kuma")
     assert kuma["health"] == "healthy" and kuma["state"] == "running"
 

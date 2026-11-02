@@ -34,7 +34,11 @@ def list_containers(cfg, fetch):
     raw = json.loads(fetch(f"{d['proxy_url']}/containers/json?all=1", d["timeout_seconds"]))
     return [{"name": c["Names"][0].lstrip("/"), "id": c["Id"][:12], "image": c["Image"],
              "state": c["State"], "status": c["Status"],
-             "health": (c.get("Health") or {}).get("Status", "none")}
+             "health": (c.get("Health") or {}).get("Status", "none"),
+             # for "what changed before it failed": when it was (re)created, and its compose file(s)
+             "created": c.get("Created"),
+             "compose_files": [f for f in ((c.get("Labels") or {}).get(
+                 "com.docker.compose.project.config_files") or "").split(",") if f]}
             for c in raw]
 
 

@@ -219,7 +219,8 @@ def container_evidence(cfg, container, facts, now, fetch=docker.http_get, run=_r
     failed_at = lines[-1][0] if lines and container["state"] != "running" else None
     oom_lines = kernel_oom((failed_at or now) - LOOKBACK, now + 60, f"docker-{container['id']}", run)
     return {
-        "target": {"kind": "container", "name": container["name"], "image": container.get("image")},
+        "target": {"kind": "container", "name": container["name"], "image": container.get("image"),
+                   "created": container.get("created"), "compose_files": container.get("compose_files", [])},
         "state": container["state"], "status": container.get("status"),
         "exit_code": int(m.group(1)) if m else None,
         "oom_killed": bool(oom_lines) or None,   # inspect isn't allowed by the proxy: the kernel line is the proof
@@ -241,7 +242,8 @@ def _unix(value):
 def unit_evidence(cfg, unit, facts, now, run=_run):
     props = dict(line.split("=", 1) for line in run(
         ["systemctl", "show", unit, "--timestamp=unix", "-p", "Result", "-p", "ExecMainCode", "-p", "ExecMainStatus",
-         "-p", "InactiveEnterTimestamp", "-p", "NRestarts", "-p", "FragmentPath"]).splitlines() if "=" in line)
+         "-p", "InactiveEnterTimestamp", "-p", "NRestarts", "-p", "FragmentPath", "-p", "DropInPaths"]).splitlines()
+        if "=" in line)
     failed_at = _unix(props.get("InactiveEnterTimestamp"))
     until = int(failed_at + 5) if failed_at else int(now)
     raw = run(["journalctl", "-u", unit, "-o", "json", "--no-pager", "-q", "--output-fields=MESSAGE",
@@ -257,7 +259,8 @@ def unit_evidence(cfg, unit, facts, now, run=_run):
         lines.append(redact(msg))
     status = props.get("ExecMainStatus")
     return {
-        "target": {"kind": "unit", "name": unit, "fragment_path": props.get("FragmentPath") or None},
+        "target": {"kind": "unit", "name": unit, "fragment_path": props.get("FragmentPath") or None,
+                   "drop_ins": (props.get("DropInPaths") or "").split()},
         "result": props.get("Result"),
         "exit_code": int(status) if status and status.lstrip("-").isdigit() and status != "0" else None,
         "oom_killed": props.get("Result") == "oom-kill" or None,

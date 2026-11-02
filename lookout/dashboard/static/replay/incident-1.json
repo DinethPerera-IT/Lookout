@@ -7,11 +7,11 @@
  "summary": "Disk / is 96.5% full (warn at 85%, crit at 95%)",
  "status": "resolved",
  "opened_run": 1,
- "opened_at": 1793416800.0,
- "last_seen": 1793512800.0,
- "resolved_at": 1793516400.0,
+ "opened_at": 1793420400.0,
+ "last_seen": 1793516400.0,
+ "resolved_at": 1793520000.0,
  "failed_at": null,
- "detected_at": 1793416800.0,
+ "detected_at": 1793420400.0,
  "time_to_detect_s": null,
  "evidence": [],
  "cause": null,
@@ -23,22 +23,22 @@
  "next_checks": [],
  "updates": [
   {
-   "at": 1793416800.0,
+   "at": 1793420400.0,
    "reason": "new",
    "severity": "warn"
   },
   {
-   "at": 1793424000.0,
+   "at": 1793427600.0,
    "reason": "worse",
    "severity": "crit"
   },
   {
-   "at": 1793512800.0,
+   "at": 1793516400.0,
    "reason": "reminder",
    "severity": "crit"
   },
   {
-   "at": 1793516400.0,
+   "at": 1793520000.0,
    "reason": "resolved",
    "severity": null
   }

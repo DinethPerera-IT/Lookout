@@ -7,11 +7,11 @@
  "summary": "cloudflared.service: 8 errors in the last 60 min (normal: median 0/h, threshold 5)",
  "status": "open",
  "opened_run": 13,
- "opened_at": 1793541600.0,
- "last_seen": 1793584800.0,
+ "opened_at": 1793545200.0,
+ "last_seen": 1793588400.0,
  "resolved_at": null,
  "failed_at": null,
- "detected_at": 1793541600.0,
+ "detected_at": 1793545200.0,
  "time_to_detect_s": null,
  "evidence": [
   "failed to connect to edge <ip>:7844"
@@ -25,17 +25,17 @@
  "next_checks": [],
  "updates": [
   {
-   "at": 1793541600.0,
+   "at": 1793545200.0,
    "reason": "new",
    "severity": "warn"
   },
   {
-   "at": 1793545200.0,
+   "at": 1793548800.0,
    "reason": "worse",
    "severity": "crit"
   },
   {
-   "at": 1793570400.0,
+   "at": 1793574000.0,
    "reason": "reminder",
    "severity": "warn"
   }

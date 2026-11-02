@@ -248,7 +248,12 @@ function crashFacts(c) {
     ["Host memory", host.memory_available_pct == null ? "–" : `${Math.round(host.memory_available_pct)}% available (at detection)`],
     disks.length ? ["Disk", disks.map(([m, p]) => `${m} ${Math.round(p)}% used`).join(", ")] : null,
   ].filter(Boolean);
-  return h("dl", { class: "facts", style: { marginTop: "1rem" } }, rows.map(([k, v]) => [h("dt", null, k), h("dd", { class: "num" }, v)]));
+  const changes = (c.recent_changes || []).map((ch) => h("li", null, ch.summary));
+  return [
+    h("dl", { class: "facts", style: { marginTop: "1rem" } }, rows.map(([k, v]) => [h("dt", null, k), h("dd", { class: "num" }, v)])),
+    h("div", { class: "grid-label", style: { marginTop: "1rem" } }, "Changes in the 24 h before the failure"),
+    changes.length ? h("ul", { class: "matches" }, changes) : h("div", { class: "muted" }, "None found (apt history, container re-creation, unit/compose file times)."),
+  ];
 }
 
 function causeStep(inc) {

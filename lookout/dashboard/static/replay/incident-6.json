@@ -7,11 +7,11 @@
  "summary": "caddy.service: an error never seen before (2x in the last 60 min)",
  "status": "open",
  "opened_run": 18,
- "opened_at": 1793574000.0,
- "last_seen": 1793574000.0,
+ "opened_at": 1793577600.0,
+ "last_seen": 1793577600.0,
  "resolved_at": null,
  "failed_at": null,
- "detected_at": 1793574000.0,
+ "detected_at": 1793577600.0,
  "time_to_detect_s": null,
  "evidence": [
   "template: tls: failed to verify certificate: x<n> certificate has expired",
@@ -26,7 +26,7 @@
  "next_checks": [],
  "updates": [
   {
-   "at": 1793574000.0,
+   "at": 1793577600.0,
    "reason": "new",
    "severity": "warn"
   }

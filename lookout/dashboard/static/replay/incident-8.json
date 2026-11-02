@@ -7,11 +7,11 @@
  "summary": "systemd unit caddy.service has failed (failed/failed)",
  "status": "open",
  "opened_run": 21,
- "opened_at": 1793584800.0,
- "last_seen": 1793584800.0,
+ "opened_at": 1793588400.0,
+ "last_seen": 1793588400.0,
  "resolved_at": null,
  "failed_at": null,
- "detected_at": 1793584800.0,
+ "detected_at": 1793588400.0,
  "time_to_detect_s": null,
  "evidence": [],
  "cause": null,
@@ -23,7 +23,7 @@
  "next_checks": [],
  "updates": [
   {
-   "at": 1793584800.0,
+   "at": 1793588400.0,
    "reason": "new",
    "severity": "crit"
   }

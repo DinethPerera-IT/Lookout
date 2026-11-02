@@ -464,6 +464,22 @@ hourly lookout.timer (safety net) ───────────────�
 - **One run at a time.** A file lock in the state directory queues runs started by the timer, an event or a hook.
 - **Measured:** the demo DB container crashed at 03:59:31 and the incident was recorded **9.3 s** later: about 3 s of debounce plus about 6 s of collection. Before, detection could take up to 60 minutes.
 
+### Recent changes (`lookout/changes.py`)
+
+**What is it?** "What changed right before it broke?" is usually the first question. For every crash, Lookout lists the changes in the 24 h before the failure, and the classifier uses them.
+
+**How does it work?** Three read-only sources, all checked by code:
+- **apt history** (`/var/log/apt/history.log`): installs, upgrades and removals, with package names
+- **the container itself:** when it was (re)created, e.g. by `docker compose up` after a pull
+- **config file times:** the unit file and its drop-ins, or the container's compose file
+
+The classifier uses `after_recent_change` when a change happened shortly before a crash *and* no more specific cause matched (OOM, disk, port, dependency). When a specific cause wins, the change is still listed as "also: recent change". Example: the demo DB crash shows "container lookout-demo-db was (re)created …, 13 s before the failure" under its `dependency_unreachable` cause.
+
+**Limits, honestly:**
+- An image's *pull* time would need `/images/json`, which the read-only proxy blocks, so (re)creation time stands in for it.
+- Compose files under `/home` are invisible to the sandboxed service (`ProtectHome`) and are skipped.
+- Lookout's own `OnFailure=` drop-in isn't counted as a change.
+
 ## Usage
 
 ```bash

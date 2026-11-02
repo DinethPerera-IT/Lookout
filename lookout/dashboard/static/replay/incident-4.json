@@ -7,11 +7,11 @@
  "summary": "Container commoncents no longer exists (it was running before)",
  "status": "resolved",
  "opened_run": 12,
- "opened_at": 1793538000.0,
- "last_seen": 1793538000.0,
- "resolved_at": 1793570400.0,
+ "opened_at": 1793541600.0,
+ "last_seen": 1793541600.0,
+ "resolved_at": 1793574000.0,
  "failed_at": null,
- "detected_at": 1793538000.0,
+ "detected_at": 1793541600.0,
  "time_to_detect_s": null,
  "evidence": [],
  "cause": null,
@@ -23,12 +23,12 @@
  "next_checks": [],
  "updates": [
   {
-   "at": 1793538000.0,
+   "at": 1793541600.0,
    "reason": "new",
    "severity": "warn"
   },
   {
-   "at": 1793570400.0,
+   "at": 1793574000.0,
    "reason": "expired",
    "severity": null
   }
