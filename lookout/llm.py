@@ -101,6 +101,17 @@ _QUANTITY = re.compile(
     r"(%|(?:percent|seconds?|minutes?|min|hours?|h|days?|errors?|times?)\b)")
 
 
+# Docker's status text ("Exited (1) 3 seconds ago", "Up 35 seconds") is relative to the moment
+# the flag was raised. A model reads it as a duration ("down for 3 seconds"), so the prompt keeps
+# the state and exit code only, exactly like the dashboard's titles (cleanTitle in app.js).
+_DOCKER_AGE = re.compile(r"\b(Exited|Restarting) \((-?\d+)\) (?:Less than a second|About an? \w+|\d+ \w+) ago")
+_DOCKER_UP = re.compile(r"\bUp (?:Less than a second|About an? \w+|\d+ \w+)(?: \((?:healthy|unhealthy|health: starting)\))?")
+
+
+def strip_docker_age(text):
+    return _DOCKER_UP.sub("running", _DOCKER_AGE.sub(r"\1 (\2)", text))
+
+
 def crash_facts(crash):
     """Code-known facts about a crash, in words the validator can check numbers against."""
     if not crash:
@@ -119,7 +130,7 @@ def alert_lines(flags):
     """Render flags for the prompt. Evidence is labelled untrusted and kept short."""
     lines = []
     for i, f in enumerate(flags, 1):
-        lines.append(f"F{i} [{f['severity']}] {f['summary']}")
+        lines.append(f"F{i} [{f['severity']}] {strip_docker_age(f['summary'])}")
         if f.get("cause"):
             lines.append(f"    CAUSE (decided by code from the evidence): {f['cause']}")
             if facts := crash_facts(f.get("crash")):

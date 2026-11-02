@@ -284,3 +284,35 @@ def test_oom_wording_is_fine_when_code_said_oom():
     ok = json.dumps({"summary": "It ran out of memory.", "alerts": [{"id": "F1", "explanation":
         "The kernel OOM killer stopped it after it exceeded its memory limit."}]})
     assert llm.validate(ok, [entry])[1] == []
+
+
+@pytest.mark.parametrize("before, after", [
+    ("Container a is not running (Exited (1) 3 seconds ago); it was running before",
+     "Container a is not running (Exited (1)); it was running before"),
+    ("Container a is not running (Exited (137) Less than a second ago); it was running before",
+     "Container a is not running (Exited (137)); it was running before"),
+    ("Container a is stuck restarting (Restarting (1) 4 seconds ago)", "Container a is stuck restarting (Restarting (1))"),
+    ("Container a restarted since the last check (now: Up 35 seconds)", "Container a restarted since the last check (now: running)"),
+    ("Container a is failing its healthcheck (Up 2 days (unhealthy))", "Container a is failing its healthcheck (running)"),
+    ("Disk / is 88.0% full (warn at 85%, crit at 95%)", "Disk / is 88.0% full (warn at 85%, crit at 95%)"),
+])
+def test_docker_age_is_stripped_like_the_dashboard_does(before, after):
+    assert llm.strip_docker_age(before) == after
+
+
+def test_the_prompt_has_no_frozen_age_so_a_misread_duration_is_rejected():
+    """Seen live twice: "exited ... after being down for 3 seconds", from "Exited (1) 3 seconds ago"."""
+    ev = json.loads((FIXTURES / "demo_db.json").read_text())["evidence"]
+    cause, matches = crash.classify(ev)
+    entry = {"key": "container_down:lookout-demo-db", "severity": "crit",
+             "summary": "Container lookout-demo-db is not running (Exited (1) 3 seconds ago); it was running before",
+             "cause": cause, "cause_matches": matches, "crash": ev, "evidence": ev["log_lines"],
+             "next_checks": crash.next_checks("container", "lookout-demo-db", cause)}
+    prompt = llm.alert_lines([entry])
+    assert "F1 [crit] Container lookout-demo-db is not running (Exited (1)); it was running before" in prompt
+    assert "seconds ago" not in prompt
+    seen_live = json.dumps({"summary": "lookout-demo-db stopped.", "alerts": [{"id": "F1", "explanation":
+        "The container lookout-demo-db has exited with a non-zero status code (exit code 1) after being down for "
+        "3 seconds. The cause is that its database is unreachable."}]})
+    answer, problems = llm.validate(seen_live, [entry])
+    assert answer is None and any("not in the alerts" in p for p in problems)
