@@ -11,6 +11,8 @@ from . import config, llm, notify, pipeline, report
 from .collectors import docker, host, journal, prometheus, systemd
 from .state import State
 
+SHADOW_PREFIX = "👻 SHADOW · "
+
 # Metrics first, so later stages (the LLM in particular) can't distort them.
 COLLECTORS = {
     "host": host.collect,
@@ -84,8 +86,13 @@ def explain(args, cfg, result):
 
 def run(args, cfg):
     """One full run. State is committed only after the report was delivered, so a
-    failed send can never mark an issue as "already reported"."""
+    failed send can never mark an issue as "already reported".
+
+    In shadow mode everything is real (state, cooldowns, heartbeat) except the
+    destination: the report goes to the journal and, if configured, a private test
+    channel. The real webhook is never used."""
     started = time.time()
+    status = "SHADOW · OK" if args.shadow else "OK"
     facts = collect_all(cfg, COLLECTORS)
     now = time.time()
     state = open_state(args, cfg)
@@ -93,14 +100,17 @@ def run(args, cfg):
         seed_baselines(state, cfg, facts, now)
         result = pipeline.run(facts, state, cfg, now)
         ai = explain(args, cfg, result)  # never raises; on any failure the facts go out alone
-        payload = report.build(result, ai=ai)
+        payload = report.build(result, SHADOW_PREFIX if args.shadow else "", ai=ai)
         if args.dry_run:
             print(json.dumps({"result": result, "ai": ai, "discord_payload": payload,
-                              "heartbeat": f"would push status=up msg='OK · {counts(result, ai)}'"}, indent=2))
+                              "heartbeat": f"would push status=up msg='{status} · {counts(result, ai)}'"}, indent=2))
             return 0
-        if payload:
+        if payload and args.shadow:
+            print("lookout: shadow report: " + json.dumps(payload, ensure_ascii=False))
+        webhook = config.secret("DISCORD_SHADOW_WEBHOOK_URL" if args.shadow else "DISCORD_WEBHOOK_URL")
+        if payload and webhook:
             try:
-                notify.send_discord(config.secret("DISCORD_WEBHOOK_URL"), payload)
+                notify.send_discord(webhook, payload)
             except notify.NotifyError as e:
                 print(f"lookout: {e}; nothing marked as reported, the next run will retry", file=sys.stderr)
                 try:  # tell Kuma right away instead of waiting for a missed heartbeat
@@ -112,12 +122,13 @@ def run(args, cfg):
     finally:
         state.close()  # without commit() this rolls back
     try:
-        notify.push_kuma(config.secret("KUMA_PUSH_URL"), "up", f"OK · {counts(result, ai)}",
+        notify.push_kuma(config.secret("KUMA_PUSH_URL"), "up", f"{status} · {counts(result, ai)}",
                          (time.time() - started) * 1000)
     except notify.NotifyError as e:
         print(f"lookout: {e}", file=sys.stderr)
         return 1
-    print(f"lookout: {counts(result, ai)}" + (" (report sent)" if payload else " (nothing to send)"))
+    outcome = ("nothing to send" if not payload else "report sent" if webhook else "report logged only")
+    print(f"lookout: {'shadow · ' if args.shadow else ''}{counts(result, ai)} ({outcome})")
     return 0
 
 
@@ -148,6 +159,9 @@ def main(argv=None):
     parser.add_argument("--fixture", help="run a scenario file (tests/fixtures/scenarios/*.json) in memory")
     parser.add_argument("--send", action="store_true",
                         help="with --fixture: send the scenario's last report to Discord as a test")
+    parser.add_argument("--shadow", action="store_true",
+                        help="real run (state, heartbeat), but the report only goes to the journal and "
+                             "DISCORD_SHADOW_WEBHOOK_URL if set; never to DISCORD_WEBHOOK_URL")
     parser.add_argument("--no-llm", action="store_true", help="skip the AI explanation (facts only)")
     parser.add_argument("--env-file", help="load secrets from this file (systemd uses EnvironmentFile= instead)")
     parser.add_argument("--config", help="path to config.toml")
@@ -159,7 +173,14 @@ def main(argv=None):
     if args.send and not args.fixture:
         parser.error("--send is only for test messages with --fixture; real runs send automatically")
 
-    needs = ["DISCORD_WEBHOOK_URL"] if args.send else [] if (args.dry_run or args.fixture) else list(config.SECRETS)
+    if args.send:
+        needs = ["DISCORD_WEBHOOK_URL"]
+    elif args.dry_run or args.fixture:
+        needs = []
+    elif args.shadow:
+        needs = ["KUMA_PUSH_URL"]  # the shadow channel is optional; the journal always gets the report
+    else:
+        needs = list(config.SECRETS)
     missing = config.missing_secrets(needs)
     if missing:
         print(f"lookout: missing {', '.join(missing)} (set by systemd EnvironmentFile= or --env-file)",

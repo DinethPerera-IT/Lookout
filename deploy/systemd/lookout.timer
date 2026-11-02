@@ -1,0 +1,11 @@
+# Runs lookout.service every hour. Persistent= catches up one missed run after downtime.
+[Unit]
+Description=Run Lookout every hour
+
+[Timer]
+OnCalendar=hourly
+Persistent=true
+AccuracySec=1min
+
+[Install]
+WantedBy=timers.target

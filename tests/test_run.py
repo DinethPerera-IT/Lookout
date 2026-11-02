@@ -13,12 +13,13 @@ FAILED = {"ok": True, "failed_units": [{"unit": "caddy.service", "active": "fail
 def harness(monkeypatch, tmp_path):
     monkeypatch.setenv("DISCORD_WEBHOOK_URL", "https://discord.com/api/webhooks/1/t")
     monkeypatch.setenv("KUMA_PUSH_URL", "http://kuma/api/push/t")
-    h = {"sent": [], "pushes": [], "fail_send": False, "units": FAILED}
+    h = {"sent": [], "urls": [], "pushes": [], "fail_send": False, "units": FAILED}
 
     def send(url, payload):
         if h["fail_send"]:
             raise notify.NotifyError("Discord webhook failed: HTTP 500")
         h["sent"].append(payload)
+        h["urls"].append(url)
 
     monkeypatch.setattr(notify, "send_discord", send)
     monkeypatch.setattr(notify, "push_kuma", lambda url, status, msg, ping_ms=None: h["pushes"].append((status, msg)))
@@ -116,3 +117,38 @@ def test_dead_ollama_port_means_facts_only(harness, monkeypatch):
     assert cli.main(harness["argv"]) == 0
     [embed] = harness["sent"][0]["embeds"]
     assert "AI explanation unavailable: Ollama unreachable" in embed["footer"]["text"]
+
+
+REAL, SHADOW = "https://discord.com/api/webhooks/1/t", "https://discord.com/api/webhooks/2/shadow"
+
+
+def test_shadow_mode_uses_only_the_shadow_channel_and_commits_state(harness, monkeypatch, capsys):
+    monkeypatch.setenv("DISCORD_SHADOW_WEBHOOK_URL", SHADOW)
+    assert cli.main(harness["argv"] + ["--shadow"]) == 0
+    assert harness["urls"] == [SHADOW]                      # never the real webhook
+    assert harness["sent"][0]["embeds"][0]["title"].startswith("👻 SHADOW · ")
+    assert "shadow report:" in capsys.readouterr().out      # also in the journal
+    assert harness["pushes"][-1] == ("up", "SHADOW · OK · 1 reported, 0 suppressed, 0 resolved · AI: ok")
+    assert cli.main(harness["argv"] + ["--shadow"]) == 0
+    assert harness["urls"] == [SHADOW]                      # state was kept: second run suppressed
+
+
+def test_shadow_mode_without_a_channel_logs_only(harness, monkeypatch, capsys):
+    monkeypatch.delenv("DISCORD_WEBHOOK_URL")               # not needed in shadow mode
+    monkeypatch.delenv("DISCORD_SHADOW_WEBHOOK_URL", raising=False)
+    assert cli.main(harness["argv"] + ["--shadow"]) == 0
+    out = capsys.readouterr().out
+    assert harness["sent"] == [] and "shadow report:" in out and "(report logged only)" in out
+    assert harness["pushes"][-1][0] == "up"
+
+
+def test_shadow_mode_still_needs_the_heartbeat(harness, monkeypatch):
+    monkeypatch.delenv("KUMA_PUSH_URL")
+    assert cli.main(harness["argv"] + ["--shadow"]) == 2
+
+
+def test_failed_shadow_send_is_a_failed_run(harness, monkeypatch):
+    monkeypatch.setenv("DISCORD_SHADOW_WEBHOOK_URL", SHADOW)
+    harness["fail_send"] = True
+    assert cli.main(harness["argv"] + ["--shadow"]) == 1
+    assert harness["pushes"][-1][0] == "down"               # same guarantees as live mode

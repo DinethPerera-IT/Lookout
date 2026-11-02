@@ -31,14 +31,14 @@ Every item below has a **principle check**: how it could violate the rule, and w
 | 5 | Discord report + Uptime Kuma push heartbeat | ✅ |
 | 6 | Model benchmark, small models only: **llama3.2:3b** picked (phi4-mini passed but slower; qwen3.5:4b echoed injected `@everyone`) | ✅ |
 | 7 | LLM explanation layer with validation and fallback | ✅ built |
-| 8 | systemd: `lookout.service` + `lookout.timer`, dedicated user `lookout`, state in `/var/lib/lookout`, sandboxing | planned |
+| 8 | systemd: `lookout.service` + `lookout.timer`, dedicated user `lookout`, state in `/var/lib/lookout`, sandboxing, `--shadow` | ✅ built |
 
 ### Then: 2 weeks of shadow mode before going live
 
-`--dry-run` deliberately throws away all state, so it can't show how cooldowns and baselines behave over days. Phase 8 therefore adds a **shadow mode**: the full pipeline, with state committed and the Kuma heartbeat sent, but reports go only to the journal and a private test channel, never the real one.
+`--dry-run` deliberately throws away all state, so it can't show how cooldowns and baselines behave over days. Phase 8 therefore adds a **shadow mode** (`--shadow`): the full pipeline, with state committed and the Kuma heartbeat sent, but reports go only to the journal and a private test channel, never the real one.
 
 **Exit criteria for going live** (reviewed together at the end of the two weeks):
-- Every shadow report was logged as a true or false positive, with a reason.
+- Every shadow report was logged as a true or false positive, with a reason, in [`docs/SHADOW_LOG.md`](docs/SHADOW_LOG.md).
 - Noise: at most ~1 avoidable report per day on average. Thresholds are tuned in `config.toml`, with the reason noted next to each change.
 - No missed incidents: anything Kuma alerted on, or that I noticed myself, also appears in Lookout's facts (or is explained).
 - The LLM layer met its validation targets on real reports: no invented facts, and the facts-only fallback worked when the model failed.

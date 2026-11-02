@@ -299,11 +299,64 @@ The first version of the unit check also failed three *correct* llama3.2:3b answ
 - They can't catch a cause stated as certain ("errors *due to* a failed connection").
 - That's why the section is labelled unverified, and why v2 adds 👍/👎 feedback to measure how often it's actually right.
 
+### Phase 8: running it as a sandboxed systemd service
+
+**What is it?** Lookout runs by itself every hour as a **systemd timer**, under its own locked-down user `lookout`. For the first two weeks it runs in **shadow mode**: everything is real except where the report goes.
+
+**How does it work?**
+
+```
+lookout.timer (hourly, Persistent=true)
+   └─> lookout.service  (Type=oneshot, User=lookout, sandboxed)
+         /usr/bin/python3 -m lookout --shadow      code: /opt/lookout (root-owned copy)
+         secrets: EnvironmentFile=~/ops-summary/.env (read by systemd as root, before the sandbox)
+         state:   /var/lib/lookout/state.sqlite    (StateDirectory=, the only writable path)
+```
+
+- **What is a systemd timer?** systemd's replacement for cron. The `.timer` unit says *when* and starts the matching `.service`, which says *what* and *how*. Compared with cron it gives you logs in the journal (`journalctl -u lookout`), `Persistent=true` (a run missed while the box was off happens at boot), a hard timeout (`TimeoutStartSec=15min` kills a hung run), and kernel-enforced sandboxing.
+- **Why a dedicated user?** If Lookout had a bug, or something abused it, it could only do what user `lookout` can do. It has no login shell, no home directory and one extra group, `systemd-journal`, to read logs. It has no Docker access at all: containers are read through the GET-only proxy from Phase 4.
+- **Sandboxing.** Code is never trusted to "just be read-only". The unit tells the kernel what's off-limits:
+
+  | Setting | Effect |
+  |---|---|
+  | `ProtectSystem=strict` + `StateDirectory=lookout` | the whole filesystem is read-only except `/var/lib/lookout` |
+  | `ProtectHome=yes` | `/home`, `/root` are invisible (hence the code copy in `/opt/lookout`) |
+  | `NoNewPrivileges`, empty `CapabilityBoundingSet` | can never become root, even through a setuid binary |
+  | `RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6` | only local sockets and TCP/IP; no raw sockets, no netlink |
+  | `SystemCallFilter=@system-service ~@privileged @resources` | blocks syscalls like mount, reboot, module loading |
+  | `MemoryDenyWriteExecute`, `ProtectKernel*`, `PrivateDevices`, `PrivateTmp`, `ProtectProc=invisible` … | no injected code, no kernel tuning, no devices, no peeking at other processes |
+  | `MemoryMax=768M`, `Nice=10`, `IOSchedulingClass=idle` | it can't starve the real services |
+
+  `systemd-analyze security lookout` scores the result (lower is safer).
+- **Shadow mode (`--shadow`).** The full pipeline runs: state is committed, so cooldowns and baselines behave exactly as they will live, and the Kuma heartbeat is sent (`SHADOW · OK · …`). But the report goes only to the **journal** and, if `DISCORD_SHADOW_WEBHOOK_URL` is set, a **private test channel**, titled "👻 SHADOW · …". The real `DISCORD_WEBHOOK_URL` is never used, which is tested. Each report is logged as true or false positive in [`docs/SHADOW_LOG.md`](docs/SHADOW_LOG.md). Going live after the review (exit criteria in [`ROADMAP.md`](ROADMAP.md)) means removing `--shadow` from `deploy/systemd/lookout.service` and re-running the installer.
+
+**Tested before installing:** a real `--dry-run --no-llm` inside a transient unit with the same memory, syscall, address-family and `/proc` restrictions (`systemd-run --user …`). All collectors worked with no blind spots.
+
+**Install** (needs sudo; nothing starts until the last step):
+
+```bash
+# 0. Secrets: create ~/ops-summary/.env yourself from .env.example (chmod 600).
+#    For shadow mode it needs KUMA_PUSH_URL, plus DISCORD_SHADOW_WEBHOOK_URL for a test channel.
+sudo deploy/install.sh                          # user, /opt/lookout copy, unit files (verified)
+systemd-analyze security lookout.service        # sandbox score
+sudo systemctl start lookout.service            # one run by hand
+journalctl -u lookout.service -n 20 --no-pager  # check it
+sudo systemctl enable --now lookout.timer       # hourly from now on
+systemctl list-timers lookout.timer             # next run time
+```
+
+Updating the code later: `git pull` (or edit), then `sudo deploy/install.sh` again. The timer picks up the new copy on its next run.
+
+**Dead-man's switch test:** `sudo systemctl stop lookout.timer`, wait past the Kuma push monitor's heartbeat interval (it should alert), then `sudo systemctl start lookout.timer`.
+
+**Uninstall:** `sudo systemctl disable --now lookout.timer && sudo rm /etc/systemd/system/lookout.{service,timer} && sudo systemctl daemon-reload && sudo rm -rf /opt/lookout /var/lib/lookout && sudo userdel lookout`.
+
 ## Usage
 
 ```bash
 python3 -m lookout --dry-run            # full run, but print the Discord payload instead of sending
 python3 -m lookout --env-file .env      # real run: send if needed (with AI explanation), then heartbeat
+python3 -m lookout --env-file .env --shadow   # real run, but report to the journal + shadow channel only
 python3 -m lookout --dry-run --no-llm   # skip the AI explanation
 python3 -m lookout --env-file .env --fixture tests/fixtures/scenarios/discord_test.json --send   # test message
 python3 -m lookout --dry-run --stage collect   # just the collected facts
@@ -326,7 +379,7 @@ python3 -m venv .venv && .venv/bin/pip install pytest
 
 ## Secrets
 
-The Discord webhook and Kuma push URLs live in `.env` (gitignored, `chmod 600`, created by hand from `.env.example`). systemd loads it with `EnvironmentFile=`, and the code only reads environment variables. Not used until phase 5.
+The Discord webhook and Kuma push URLs live in `.env` (gitignored, `chmod 600`, created by hand from `.env.example`). systemd loads it with `EnvironmentFile=` (as root, before the sandbox starts), and the code only reads environment variables. Shadow mode needs only `KUMA_PUSH_URL` (and optionally `DISCORD_SHADOW_WEBHOOK_URL`).
 
 ## Roadmap
 
@@ -341,4 +394,4 @@ Longer-term plans (v2, v3) and the core principle behind them: [`ROADMAP.md`](RO
 | 5 | Discord report + Kuma heartbeat | ✅ |
 | 6 | Model benchmark: llama3.2:3b picked over phi4-mini and qwen3.5:4b | ✅ |
 | 7 | LLM explanation layer with validation and fallback | ✅ |
-| 8 | systemd timer, dedicated user, sandboxing | |
+| 8 | systemd timer, dedicated user, sandboxing, shadow mode | ✅ built, not installed |
