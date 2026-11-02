@@ -419,6 +419,32 @@ browser ──GET──> lookout.dashboard (http.server) ──> api.py ──> 
   Everything is named and labelled `lookout-demo-*`, so it's obvious what it is and easy to remove.
 - `remove` deletes them. Lookout will then (correctly) report them as gone once.
 
+### Crash evidence and cause classification (`lookout/crash.py`)
+
+**What is it?** When a container stops or restarts, or a systemd unit fails, Lookout collects the evidence and says *why*, as a deterministic classification with the matching evidence attached.
+
+**How does it work?**
+1. **Evidence, collected by code:**
+   - exit code (from the container list status, or `systemctl show`)
+   - OOM kill: the kernel's `oom-kill` line, matched to the container's ID in its cgroup path
+   - the last 30 log lines before the stop (redacted)
+   - host memory and disk
+   - systemd `Result=` and restart count, for units
+   - recent changes (step 6)
+   Kernel lines are matched on raw text, because the redactor turns the 64-character container ID into `<token>`, and only redacted lines leave the function.
+2. **Classifier: a fixed priority list.** `out_of_memory` → `disk_full` → `port_in_use` → `dependency_unreachable` → `after_recent_change` → `app_crash` (traceback/panic/uncaught) → `unknown`. Specific causes beat generic ones: a stack trace *caused by* a refused connection is `dependency_unreachable`. Exit 137 alone isn't called OOM (`docker kill` gives 137 too); it needs the kernel's word or `Result=oom-kill`. Every match is stored as `{signal, detail}`, so the dashboard shows *why*.
+3. **Next checks: an allowlist.** Each cause maps to 2–3 read-only command templates (`docker logs`, `journalctl -k --grep`, `ss -ltn`, `df -h`…). Names are only filled in if they look like a plain container or unit name, so `x; rm -rf /` gets no command at all. The model sees only the *purpose* of each check (K1, K2…) and may pick which to show first. It never sees or writes command text, and Lookout never runs them.
+4. **The LLM gets the cause as a given.** The prompt says "CAUSE (decided by code)", the crash facts and the matched lines (log text still labelled untrusted). The model explains the cause and can't change it.
+
+**Why not `docker inspect`?** It would give `OOMKilled` and the restart count directly, but the read-only proxy blocks it on purpose: inspect returns every container's environment variables, which often hold passwords. The kernel's own OOM message is equally good proof, and the restart count shows as "not available".
+
+**Tested with:**
+- real evidence captured from the demo lab
+- 13 hand-written cases (Python traceback, Go panic, disk full, DNS failure, systemd OOM kill, SIGKILL without OOM, recent changes)
+- the Phase 6 injection lines replayed as a crashed container's logs
+
+**Live run with the model on:** all three demo crashes were classified correctly, with time-to-detect 6–9 s. llama3.2:3b's explanations passed every check, and it picked checks only from the allowlist. That run also showed a templating weakness: random `vethXXXX` interface names (Docker removes them when a container dies) made every message "never seen before". They're now one template, `<iface>`.
+
 ## Usage
 
 ```bash

@@ -8,13 +8,13 @@ from pathlib import Path
 
 STALE_AFTER = 2 * 3600 + 600   # the timer runs hourly; two missed runs = stale
 BENCH_DIR = Path(__file__).resolve().parent.parent.parent / "bench" / "results"
-_JSON_FIELDS = ("evidence", "cause_matches", "next_checks", "updates")
+_JSON_FIELDS = ("evidence", "cause_matches", "next_checks", "updates", "crash")
 
 
 def _incident(row, full=False):
     d = dict(row)
     for f in _JSON_FIELDS:
-        d[f] = json.loads(d[f]) if d.get(f) else []
+        d[f] = json.loads(d[f]) if d.get(f) else ([] if f != "crash" else None)
     if not full:
         d = {k: d[k] for k in ("id", "issue_key", "rule", "kind", "severity", "summary", "status", "opened_at",
                                "last_seen", "resolved_at", "time_to_detect_s", "cause")}

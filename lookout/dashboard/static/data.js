@@ -4,7 +4,8 @@
 "use strict";
 
 const LookoutData = (() => {
-  const state = { replay: new URLSearchParams(location.search).has("replay"), listeners: [] };
+  const params = new URLSearchParams(location.search);
+  const state = { replay: params.has("replay"), listeners: [] };
 
   function replayFile(path) {
     const m = path.match(/^api\/incidents\/(\d+)$/);
@@ -35,7 +36,7 @@ const LookoutData = (() => {
 
   // Live updates over Server-Sent Events. In replay mode there is nothing to stream.
   function stream(onUpdate) {
-    if (state.replay || !window.EventSource) return;
+    if (state.replay || params.has("nostream") || !window.EventSource) return;   // ?nostream: e.g. for screenshots
     const es = new EventSource("api/stream");
     es.addEventListener("update", (e) => onUpdate(JSON.parse(e.data)));
     es.onerror = () => { if (es.readyState === EventSource.CLOSED) setTimeout(() => stream(onUpdate), 5000); };

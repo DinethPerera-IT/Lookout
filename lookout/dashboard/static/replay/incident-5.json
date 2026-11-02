@@ -39,5 +39,6 @@
    "reason": "reminder",
    "severity": "warn"
   }
- ]
+ ],
+ "crash": null
 }

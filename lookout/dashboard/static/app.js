@@ -148,7 +148,7 @@ function incidentRow(inc) {
         h("span", null, SEV_LABEL[inc.severity] || inc.severity),
         h("span", { class: "num" }, `opened ${clockTime(inc.opened_at)}`),
         h("span", { class: "num" }, inc.status === "resolved" ? `lasted ${dur(until - inc.opened_at)}` : `for ${dur(until - inc.opened_at)}`),
-        inc.cause ? h("span", { class: "chip" }, inc.cause) : null)),
+        inc.cause ? h("span", { class: "chip" }, `cause: ${inc.cause}`) : null)),
     h("div", { class: "inc-right" }, statePill(inc), h("div", null, ago(inc.status === "resolved" ? inc.resolved_at : inc.last_seen)))),
   `#/incident/${inc.id}`);
 }
@@ -227,13 +227,39 @@ function evidenceStep(inc) {
       : h("div", { class: "muted" }, "No log lines for this rule: the fact above is a measured value, not a log message."));
 }
 
+const CAUSE_TEXT = {
+  out_of_memory: "Out of memory",
+  disk_full: "Disk full",
+  port_in_use: "Port already in use",
+  dependency_unreachable: "Dependency unreachable",
+  after_recent_change: "Failed after a recent change",
+  app_crash: "Application crash",
+  unknown: "Unknown",
+};
+
+function crashFacts(c) {
+  if (!c) return null;
+  const host = c.host || {}, disks = Object.entries(host.disk_used_pct || {});
+  const rows = [
+    ["Exit code", c.exit_code == null ? "unknown" : String(c.exit_code)],
+    c.result ? ["systemd result", c.result] : null,
+    ["OOM-killed", c.oom_killed ? "yes (kernel OOM killer)" : "no evidence"],
+    ["Restarts", c.restart_count == null ? "not available (the read-only proxy doesn't allow inspect)" : String(c.restart_count)],
+    ["Host memory", host.memory_available_pct == null ? "–" : `${Math.round(host.memory_available_pct)}% available (at detection)`],
+    disks.length ? ["Disk", disks.map(([m, p]) => `${m} ${Math.round(p)}% used`).join(", ")] : null,
+  ].filter(Boolean);
+  return h("dl", { class: "facts", style: { marginTop: "1rem" } }, rows.map(([k, v]) => [h("dt", null, k), h("dd", { class: "num" }, v)]));
+}
+
 function causeStep(inc) {
   const matches = (inc.cause_matches || []).map((m) =>
-    h("li", null, typeof m === "string" ? m : [h("b", null, m.signal || "match"), m.detail ? `: ${m.detail}` : ""]));
+    h("li", null, typeof m === "string" ? m : [h("b", null, m.signal || "match"), m.detail ? [": ", h("span", { class: "mono" }, m.detail)] : ""]));
   return step(3, "Cause classification", "Deterministic classifier",
     inc.cause
-      ? [h("div", { class: "cause" }, h("span", { class: "cause-name" }, inc.cause), h("span", { class: "muted" }, "decided by code from the evidence, not by the AI")),
-         matches.length ? [h("div", { class: "grid-label", style: { marginTop: "1rem" } }, "Why: evidence that matched"), h("ul", { class: "matches" }, matches)] : null]
+      ? [h("div", { class: "cause" }, h("span", { class: "cause-name" }, inc.cause),
+           h("span", null, CAUSE_TEXT[inc.cause] || ""), h("span", { class: "muted" }, "· decided by code from the evidence, not by the AI")),
+         matches.length ? [h("div", { class: "grid-label", style: { marginTop: "1rem" } }, "Why: evidence that matched"), h("ul", { class: "matches" }, matches)] : null,
+         crashFacts(inc.crash)]
       : h("div", { class: "muted" }, "Not classified: this rule has no crash evidence to classify."));
 }
 

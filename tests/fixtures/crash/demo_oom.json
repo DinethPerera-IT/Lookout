@@ -1,0 +1,53 @@
+{
+ "description": "Real evidence from the demo lab (lookout-demo-oom), collected through the read-only proxy",
+ "evidence": {
+  "target": {
+   "kind": "container",
+   "name": "lookout-demo-oom",
+   "image": "lookout-demo-app:local"
+  },
+  "state": "exited",
+  "status": "Exited (137) 2 seconds ago",
+  "exit_code": 137,
+  "oom_killed": true,
+  "restart_count": null,
+  "failed_at": 1793590876.112416,
+  "log_lines": [
+   "2026-11-02T03:38:03.946Z [oom] service started, serving requests",
+   "2026-11-02T03:38:23.969Z [oom] health check ok",
+   "2026-11-02T03:38:43.989Z [oom] health check ok",
+   "2026-11-02T03:39:04.009Z [oom] health check ok",
+   "2026-11-02T03:39:24.028Z [oom] health check ok",
+   "2026-11-02T03:39:44.048Z [oom] health check ok",
+   "2026-11-02T03:40:04.069Z [oom] health check ok",
+   "2026-11-02T03:40:24.088Z [oom] health check ok",
+   "2026-11-02T03:40:44.109Z [oom] health check ok",
+   "2026-11-02T03:41:04.129Z [oom] health check ok",
+   "2026-11-02T03:41:13.496Z [oom] loading report cache into memory",
+   "2026-11-02T03:41:13.705Z [oom] report cache: 4 MB",
+   "2026-11-02T03:41:13.905Z [oom] report cache: 8 MB",
+   "2026-11-02T03:41:14.106Z [oom] report cache: 12 MB",
+   "2026-11-02T03:41:14.307Z [oom] report cache: 16 MB",
+   "2026-11-02T03:41:14.508Z [oom] report cache: 20 MB",
+   "2026-11-02T03:41:14.703Z [oom] report cache: 24 MB",
+   "2026-11-02T03:41:14.905Z [oom] report cache: 28 MB",
+   "2026-11-02T03:41:15.108Z [oom] report cache: 32 MB",
+   "2026-11-02T03:41:15.307Z [oom] report cache: 36 MB",
+   "2026-11-02T03:41:15.510Z [oom] report cache: 40 MB",
+   "2026-11-02T03:41:15.706Z [oom] report cache: 44 MB",
+   "2026-11-02T03:41:15.913Z [oom] report cache: 48 MB",
+   "2026-11-02T03:41:16.112Z [oom] report cache: 52 MB"
+  ],
+  "kernel_oom": [
+   "oom-kill:constraint=CONSTRAINT_MEMCG,nodemask=(null),cpuset=docker-<token>.scope,mems_allowed=0,oom_memcg=/system.slice/docker-<token>.scope,task_memcg=/system.slice/docker-<token>.scope,task=node,pid=3473674,uid=1000",
+   "Memory cgroup out of memory: Killed process 3473674 (node) total-vm:745352kB, anon-rss:64356kB, file-rss:41948kB, shmem-rss:0kB, UID:1000 pgtables:676kB oom_score_adj:0"
+  ],
+  "host": {
+   "memory_available_pct": 74.0,
+   "disk_used_pct": {
+    "/": 34.0
+   }
+  }
+ },
+ "expect": "out_of_memory"
+}

@@ -7,7 +7,7 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
-from . import config, history, llm, notify, pipeline, report
+from . import config, crash, history, llm, notify, pipeline, report
 from .collectors import docker, host, journal, prometheus, systemd
 from .state import State
 
@@ -101,10 +101,14 @@ def run(args, cfg):
     try:
         seed_baselines(state, cfg, facts, now)
         result = pipeline.run(facts, state, cfg, now)
+        for entry in result["report"]:
+            entry["detected_at"] = now
+        crash.investigate(result, facts, cfg, now)  # evidence + cause, by code; never raises
         timings["detect_ms"] = (time.time() - now) * 1000
         t = time.time()
         ai = explain(args, cfg, result)  # never raises; on any failure the facts go out alone
         timings["llm_ms"] = (time.time() - t) * 1000 if ai is not None else None
+        crash.apply_ai_checks(result, ai)
         payload = report.build(result, SHADOW_PREFIX if args.shadow else "", ai=ai)
         t = time.time()
         if args.dry_run:

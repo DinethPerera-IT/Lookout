@@ -1,0 +1,54 @@
+{
+ "description": "Real evidence from the demo lab (lookout-demo-db), collected through the read-only proxy",
+ "evidence": {
+  "target": {
+   "kind": "container",
+   "name": "lookout-demo-db",
+   "image": "lookout-demo-app:local"
+  },
+  "state": "exited",
+  "status": "Exited (1) Less than a second ago",
+  "exit_code": 1,
+  "oom_killed": null,
+  "restart_count": null,
+  "failed_at": 1793590878.689919,
+  "log_lines": [
+   "2026-11-02T03:38:03.919Z [db] service started, serving requests",
+   "2026-11-02T03:38:23.943Z [db] health check ok",
+   "2026-11-02T03:38:43.962Z [db] health check ok",
+   "2026-11-02T03:39:03.975Z [db] health check ok",
+   "2026-11-02T03:39:23.996Z [db] health check ok",
+   "2026-11-02T03:39:44.015Z [db] health check ok",
+   "2026-11-02T03:40:04.035Z [db] health check ok",
+   "2026-11-02T03:40:24.055Z [db] health check ok",
+   "2026-11-02T03:40:44.073Z [db] health check ok",
+   "2026-11-02T03:41:04.094Z [db] health check ok",
+   "2026-11-02T03:41:16.669Z [db] lost database connection, reconnecting to orders-db:5432",
+   "2026-11-02T03:41:16.680Z [db] database orders-db:5432 unreachable (attempt 1/3): ECONNREFUSED",
+   "2026-11-02T03:41:17.683Z [db] database orders-db:5432 unreachable (attempt 2/3): ECONNREFUSED",
+   "2026-11-02T03:41:18.686Z [db] giving up on orders-db:5432",
+   "/app/app.js:32",
+   "          throw err;  // uncaught: Node prints the stack trace and exits 1",
+   "          ^",
+   "",
+   "Error: connect ECONNREFUSED 127.0.0.1:5432",
+   "    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1638:16) {",
+   "  errno: -111,",
+   "  code: 'ECONNREFUSED',",
+   "  syscall: 'connect',",
+   "  address: '127.0.0.1',",
+   "  port: 5432",
+   "}",
+   "",
+   "Node.js v22.23.1"
+  ],
+  "kernel_oom": [],
+  "host": {
+   "memory_available_pct": 74.0,
+   "disk_used_pct": {
+    "/": 34.0
+   }
+  }
+ },
+ "expect": "dependency_unreachable"
+}

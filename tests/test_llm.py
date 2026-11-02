@@ -143,7 +143,8 @@ def test_explain_maps_answers_back_to_flag_keys(cfg):
     content = json.dumps({"summary": "Caddy stopped.", "alerts": [{"id": "F1", "explanation": "caddy.service stopped."}]})
     ai = llm.explain(cfg, ENTRIES, opener=ollama(content, seen=seen))
     assert ai == {"ok": True, "model": "llama3.2:3b", "summary": "Caddy stopped.",
-                  "alerts": [("failed_unit:caddy.service", "caddy.service stopped.")]}
+                  "alerts": [("failed_unit:caddy.service", "caddy.service stopped.")],
+                  "checks": {"failed_unit:caddy.service": []}}
     body, timeout = seen[0]
     assert body["think"] is False and body["format"] == llm.SCHEMA and body["model"] == "llama3.2:3b"
     assert body["options"]["temperature"] == 0 and timeout == 600

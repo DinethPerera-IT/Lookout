@@ -1,0 +1,56 @@
+{
+ "description": "Real evidence from the demo lab (lookout-demo-port), collected through the read-only proxy",
+ "evidence": {
+  "target": {
+   "kind": "container",
+   "name": "lookout-demo-port",
+   "image": "lookout-demo-app:local"
+  },
+  "state": "exited",
+  "status": "Exited (1) Less than a second ago",
+  "exit_code": 1,
+  "oom_killed": null,
+  "restart_count": null,
+  "failed_at": 1793590878.89691,
+  "log_lines": [
+   "2026-11-02T03:39:03.969Z [port] health check ok",
+   "2026-11-02T03:39:23.988Z [port] health check ok",
+   "2026-11-02T03:39:43.999Z [port] health check ok",
+   "2026-11-02T03:40:03.999Z [port] health check ok",
+   "2026-11-02T03:40:24.018Z [port] health check ok",
+   "2026-11-02T03:40:44.028Z [port] health check ok",
+   "2026-11-02T03:41:04.029Z [port] health check ok",
+   "2026-11-02T03:41:18.894Z [port] config reloaded: starting API server on :8080",
+   "node:events:497",
+   "      throw er; // Unhandled 'error' event",
+   "      ^",
+   "",
+   "Error: listen EADDRINUSE: address already in use :::8080",
+   "    at Server.setupListenHandle [as _listen2] (node:net:1941:16)",
+   "    at listenInCluster (node:net:1998:12)",
+   "    at Server.listen (node:net:2103:7)",
+   "    at Object.port (/app/app.js:41:52)",
+   "    at process.<anonymous> (/app/app.js:54:43)",
+   "    at process.emit (node:events:519:28)",
+   "Emitted 'error' event on Server instance at:",
+   "    at emitErrorNT (node:net:1977:8)",
+   "    at process.processTicksAndRejections (node:internal/process/task_queues:89:21) {",
+   "  code: 'EADDRINUSE',",
+   "  errno: -98,",
+   "  syscall: 'listen',",
+   "  address: '::',",
+   "  port: 8080",
+   "}",
+   "",
+   "Node.js v22.23.1"
+  ],
+  "kernel_oom": [],
+  "host": {
+   "memory_available_pct": 74.0,
+   "disk_used_pct": {
+    "/": 34.0
+   }
+  }
+ },
+ "expect": "port_in_use"
+}

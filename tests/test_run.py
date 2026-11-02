@@ -34,6 +34,9 @@ def harness(monkeypatch, tmp_path):
 
     monkeypatch.setattr(cli.llm, "explain", fake_explain)
     monkeypatch.setattr(cli.pipeline, "seed_if_needed", lambda *a, **k: False)
+    monkeypatch.setattr(cli.crash, "unit_evidence", lambda cfg, unit, facts, now: {
+        "target": {"kind": "unit", "name": unit}, "result": "exit-code", "exit_code": 1, "failed_at": now - 30,
+        "log_lines": ["Error: listen tcp :443: bind: address already in use"], "kernel_oom": [], "host": {}})
     h["argv"] = ["--state", str(tmp_path / "state.sqlite")]
     return h
 

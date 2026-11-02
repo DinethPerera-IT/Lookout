@@ -18,6 +18,8 @@ _RULES = [
     # IPv6: must contain "::" or a hex letter, so times like 12:30:45 are left alone
     (re.compile(r"(?<![\w:])(?=[0-9a-fA-F:]*(?:::|[a-fA-F]))[0-9a-fA-F]{0,4}(?::[0-9a-fA-F]{0,4}){2,7}(?![\w:])"),
      "<ip>"),
+    # Container network interfaces get random names (veth9d3c036, br-1a2b3c4d5e6f): one template for all
+    (re.compile(r"\b(?:veth|br-|tap|vnet)[0-9a-fA-F]{4,}\b"), "<iface>"),
     (re.compile(r"\b0x[0-9a-fA-F]+\b"), "<hex>"),
     (re.compile(r"\b(?=[0-9a-fA-F]*\d)(?=[0-9a-fA-F]*[a-fA-F])[0-9a-fA-F]{8,}\b"), "<hex>"),
     (re.compile(r"\d+"), "<n>"),

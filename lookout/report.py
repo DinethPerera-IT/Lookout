@@ -91,7 +91,12 @@ def build(result, title_prefix="", ai=None):
         chunks = []
         for r in report:
             chunk = f"{ICON[r['severity']]} **{REASON.get(r['reason'], r['reason'])}** · {escape(r['summary'])}"
-            block = evidence_block(r.get("evidence") or [])
+            lines = r.get("evidence") or []
+            if r.get("cause"):  # a classified crash: say what code concluded, quote what matched
+                chunk += f"\nCause (classified by code): **{escape(r['cause'])}**"
+                matched = [m["detail"] for m in r.get("cause_matches", []) if m["signal"] in ("log line", "kernel OOM killer")]
+                lines = matched or lines[-EVIDENCE_LINES:]
+            block = evidence_block(lines)
             chunks.append(chunk + ("\n" + block if block else ""))
         still = [s["key"] for s in result.get("suppressed", [])]
         if still:

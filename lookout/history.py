@@ -25,15 +25,22 @@ SCHEMA = [
         evidence TEXT,               -- JSON list of redacted log lines
         cause TEXT, cause_matches TEXT,  -- deterministic classification + what matched (JSON)
         ai_status TEXT, ai_model TEXT, ai_summary TEXT, ai_explanation TEXT,
-        next_checks TEXT,            -- JSON list of read-only commands
-        updates TEXT)""",            # JSON list of {at, reason, severity}
+        next_checks TEXT,            -- JSON list of {id, command, why}: read-only, from an allowlist
+        updates TEXT,                -- JSON list of {at, reason, severity}
+        crash TEXT)""",              # JSON: exit code, OOM, kernel lines, host, recent changes
     "CREATE INDEX IF NOT EXISTS incidents_open ON incidents (issue_key, status)",
 ]
+
+
+MIGRATIONS = ["ALTER TABLE incidents ADD COLUMN crash TEXT"]
 
 
 def init(conn):
     for statement in SCHEMA:
         conn.execute(statement)
+    columns = {r[1] for r in conn.execute("PRAGMA table_info(incidents)")}
+    if "crash" not in columns:  # state files from before crash evidence existed
+        conn.execute(MIGRATIONS[0])
 
 
 def snapshot(facts, known_containers=None):
@@ -78,6 +85,7 @@ def record(conn, *, started_at, finished_at, mode, timings, result, ai, delivere
     explanations = dict(ai.get("alerts", [])) if ai.get("ok") else {}
     now = finished_at
     for entry in result["report"]:
+        now = entry.get("detected_at", finished_at)  # when code saw it, not when the (slow) LLM finished
         row = _open(conn, entry["key"])
         update = {"at": now, "reason": entry["reason"], "severity": entry["severity"]}
         if row is None or entry["reason"] in ("new", "reappeared"):
@@ -86,12 +94,13 @@ def record(conn, *, started_at, finished_at, mode, timings, result, ai, delivere
             failed_at = entry.get("failed_at")
             conn.execute(
                 "INSERT INTO incidents (issue_key, rule, kind, severity, summary, status, opened_run, opened_at, "
-                "last_seen, failed_at, detected_at, time_to_detect_s, evidence, cause, cause_matches, updates) "
-                "VALUES (?, ?, ?, ?, ?, 'open', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                "last_seen, failed_at, detected_at, time_to_detect_s, evidence, cause, cause_matches, next_checks, "
+                "updates, crash) VALUES (?, ?, ?, ?, ?, 'open', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (entry["key"], entry.get("rule"), entry.get("kind"), entry["severity"], entry["summary"], run_id,
-                 now, now, failed_at, now, None if failed_at is None else max(0.0, now - failed_at),
+                 now, now, failed_at, entry.get("detected_at", now), _ttd(entry, now),
                  json.dumps(entry.get("evidence", [])), entry.get("cause"),
-                 json.dumps(entry.get("cause_matches", [])), json.dumps([update])))
+                 json.dumps(entry.get("cause_matches", [])), json.dumps(entry.get("next_checks", [])),
+                 json.dumps([update]), json.dumps(entry.get("crash")) if entry.get("crash") else None))
             row = _open(conn, entry["key"])
         else:
             conn.execute(
@@ -99,12 +108,18 @@ def record(conn, *, started_at, finished_at, mode, timings, result, ai, delivere
                 "WHERE id = ?",
                 (entry["severity"], entry["summary"], now, json.dumps(entry.get("evidence", [])),
                  json.dumps(json.loads(row["updates"]) + [update]), row["id"]))
+            if entry.get("cause"):  # a fresh investigation (e.g. it got worse): keep the latest
+                conn.execute(
+                    "UPDATE incidents SET cause = ?, cause_matches = ?, next_checks = ?, crash = ? WHERE id = ?",
+                    (entry["cause"], json.dumps(entry.get("cause_matches", [])),
+                     json.dumps(entry.get("next_checks", [])), json.dumps(entry.get("crash")), row["id"]))
         if ai:
             conn.execute(
                 "UPDATE incidents SET ai_status = ?, ai_model = ?, ai_summary = ?, ai_explanation = ?, "
                 "next_checks = ? WHERE id = ?",
                 ("ok" if ai.get("ok") else ai.get("reason"), ai.get("model"), ai.get("summary"),
                  explanations.get(entry["key"]), json.dumps(entry.get("next_checks", [])), row["id"]))
+    now = finished_at
     for entry in result["suppressed"]:
         conn.execute("UPDATE incidents SET last_seen = ? WHERE issue_key = ? AND status = 'open'",
                      (now, entry["key"]))
@@ -117,6 +132,12 @@ def record(conn, *, started_at, finished_at, mode, timings, result, ai, delivere
         if row is not None:
             _close(conn, row, now, "expired")
     return run_id
+
+
+def _ttd(entry, now):
+    """Time to detect: when code noticed minus when it broke (only when the failure time is known)."""
+    failed_at = entry.get("failed_at")
+    return None if failed_at is None else max(0.0, entry.get("detected_at", now) - failed_at)
 
 
 def _open(conn, key):

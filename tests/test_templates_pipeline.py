@@ -63,3 +63,10 @@ def test_history_buckets_hourly_and_skips_noise(cfg, monkeypatch):
     assert h["samples"] == {("app.service", 9_998): 2}
     assert list(h["templates"]) == [("app.service", "boom <n>")]
     assert h["start"] == (9_999 - 168) * HOUR  # aligned to a full hour
+
+
+def test_container_interface_names_share_one_template():
+    from lookout.templates import template_of
+    names = ["vethe8f79ee", "veth9d3c036", "vethdab1476", "br-1a2b3c4d5e6f"]
+    assert {template_of(f'Interface "{n}" not found.') for n in names} == {'Interface "<iface>" not found.'}
+    assert template_of("eth0 link up") == "eth<n> link up"     # real interfaces keep their meaning

@@ -27,5 +27,6 @@
    "reason": "new",
    "severity": "crit"
   }
- ]
+ ],
+ "crash": null
 }
