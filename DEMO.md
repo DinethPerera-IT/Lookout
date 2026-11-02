@@ -15,7 +15,7 @@ Measured on this server (i5-4590, CPU-only, llama3.2:3b):
 ## The night before / morning of
 
 1. **Pick the version.** `cd ~/ops-summary && git checkout master && .venv/bin/pytest -q` (all green). The last tag is `demo-8`.
-2. **Secrets** (you create this yourself): create `~/ops-summary/.env` (see README → Phase 8) with `KUMA_PUSH_URL` and `DISCORD_SHADOW_WEBHOOK_URL`, then `chmod 600`.
+2. **Secrets** (you create this yourself): create `~/ops-summary/.env` (see README → Phase 8) with `KUMA_PUSH_URL`, then `chmod 600`. Discord is off (`[notify] discord = false`): the dashboard is the only output, so no Discord URLs are needed.
 3. **Install and start** (shadow mode: real runs, reports only to the test channel):
    ```bash
    sudo deploy/install.sh
@@ -43,7 +43,7 @@ Measured on this server (i5-4590, CPU-only, llama3.2:3b):
 | 0:30 | `deploy/demo/demo.sh crash-oom` | "This container has a 64 MB memory limit, and I've just made it leak memory." |
 | 0:40 | Wait for the red incident (≈10 s); the tile turns red | "It noticed by itself from a Docker event, no polling." Point at **time to detect**. |
 | 0:50 | Click the incident. Walk down the steps: **Facts → Evidence → Cause** | "The memory climbs in the logs. The cause, `out_of_memory`, was decided by **code**, and here's *why*: Docker's OOM flag, the kernel's own OOM message naming this container, exit code 137." |
-| 1:20 | Step 4 shows "being written…" | "The facts were already sent to Discord. The AI never delays an alert. It's a 3-billion-parameter model on this old CPU, so it takes about a minute." |
+| 1:20 | Step 4 shows "being written…" | "The facts were already recorded and on screen. The AI never delays an alert. It's a 3-billion-parameter model on this old CPU, so it takes about a minute." |
 | ~1:50 | The AI text appears by itself (live update) | "Labelled *unverified hypothesis*. Code checked it: no invented numbers or names, no commands, no reassurance. It also can't contradict the cause; I caught it doing exactly that in rehearsal." |
 | 2:10 | Step 5, next checks | "Read-only commands from an allowlist. The AI can only pick from them; Lookout never runs anything." |
 | 2:30 | `deploy/demo/demo.sh crash-db` | "A different failure: the database it depends on isn't there." It shows `dependency_unreachable`, with "also: recent change", because the container was recreated minutes ago. |

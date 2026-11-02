@@ -146,7 +146,9 @@ def _run(args, cfg):
         t = time.time()
         if payload and args.shadow:
             print("lookout: shadow report: " + json.dumps(payload, ensure_ascii=False))
-        webhook = config.secret("DISCORD_SHADOW_WEBHOOK_URL" if args.shadow else "DISCORD_WEBHOOK_URL")
+        discord = config.discord_enabled(cfg)
+        webhook = (config.secret("DISCORD_SHADOW_WEBHOOK_URL" if args.shadow else "DISCORD_WEBHOOK_URL")
+                   if discord else None)  # Discord off: the dashboard (history below) is the only output
         message_id = None
         if payload and webhook:
             try:
@@ -163,7 +165,8 @@ def _run(args, cfg):
         run_id = history.record(state.conn, started_at=started, finished_at=time.time(),
                                 mode="shadow" if args.shadow else "live", timings=timings, result=result,
                                 ai=history.PENDING if will_explain else None, delivered=bool(payload and webhook),
-                                snapshot=history.snapshot(facts, state.containers()), trigger=args.trigger)
+                                snapshot=history.snapshot(facts, state.containers()), trigger=args.trigger,
+                                discord=discord)
         state.commit()
         try:
             notify.push_kuma(config.secret("KUMA_PUSH_URL"), "up", f"{status} · {counts(result)}",
@@ -171,7 +174,8 @@ def _run(args, cfg):
         except notify.NotifyError as e:
             print(f"lookout: {e}", file=sys.stderr)
             return 1
-        outcome = ("nothing to send" if not payload else "report sent" if webhook else "report logged only")
+        outcome = ("nothing to send" if not payload else "report sent" if webhook
+                   else "recorded for the dashboard, Discord off" if not discord else "report logged only")
         print(f"lookout: {'shadow · ' if args.shadow else ''}{counts(result)} ({outcome})", flush=True)
 
         # --- phase 2: the optional explanation, added afterwards -----------------
@@ -234,13 +238,15 @@ def main(argv=None):
         config.load_env_file(args.env_file)
     if args.send and not args.fixture:
         parser.error("--send is only for test messages with --fixture; real runs send automatically")
+    if args.send and not config.discord_enabled(cfg):
+        parser.error("--send needs Discord: set [notify] discord = true in config.toml")
 
     if args.send:
         needs = ["DISCORD_WEBHOOK_URL"]
     elif args.dry_run or args.fixture:
         needs = []
-    elif args.shadow:
-        needs = ["KUMA_PUSH_URL"]  # the shadow channel is optional; the journal always gets the report
+    elif args.shadow or not config.discord_enabled(cfg):
+        needs = ["KUMA_PUSH_URL"]  # shadow channel optional; with Discord off no webhook is needed at all
     else:
         needs = list(config.SECRETS)
     missing = config.missing_secrets(needs)

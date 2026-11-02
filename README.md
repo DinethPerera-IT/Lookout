@@ -20,14 +20,14 @@ A second opinion layered on top of my real alerting. [Uptime Kuma](https://githu
  3 DETECT     thresholds · baselines · never-seen-before errors · restarts       (code decides)
  4 CLASSIFY   crash evidence -> out_of_memory | disk_full | port_in_use |
               dependency_unreachable | after_recent_change | app_crash | unknown (code decides)
- 5 REPORT     facts to Discord + dashboard, state committed, Kuma heartbeat     (seconds)
+ 5 REPORT     facts to the dashboard (+ Discord if enabled), state committed, Kuma heartbeat  (seconds)
  6 EXPLAIN    local llama3.2:3b explains the classified facts, validated by code,
               added to the same message afterwards                (AI · unverified · hypothesis)
 ```
 
 **The core principle: the AI can raise its hand, but it can't lower anyone else's.**
 - **Code decides and classifies, the LLM explains.** Every flag, severity and cause comes from rules that are tested and repeatable. The model gets the cause as a given and can't change it. An answer that contradicts the classification, invents a number or name, hedges a fact, plays something down, suggests a command or repeats hostile log text is dropped whole.
-- **The AI can't delay anything.** The facts are delivered and saved *before* the model starts. Its explanation is added to the same Discord message about a minute later.
+- **The AI can't delay anything.** The facts are delivered and saved *before* the model starts. Its explanation is added to the incident (and the same Discord message, if Discord is on) about a minute later.
 - **Read-only everywhere.**
   - Docker is reached only through a GET-only proxy (`inspect` is blocked because it would expose env vars).
   - The services run sandboxed as a dedicated user.
@@ -478,6 +478,7 @@ hourly lookout.timer (safety net) ───────────────�
 - **Docker events** (`lookout/watch.py`, `lookout-watch.service`). The watcher follows `die`, `oom`, `health_status` and `start` through the read-only proxy. A burst (die + oom + network teardown) is debounced into **one** run. The event only adds facts: the exact failure time, the exit code and the OOM flag, passed as `--hints`. The run itself is the normal pipeline, with the same rules, dedup and report, so one crash = one incident. If the proxy cuts the stream, the watcher reconnects with `since=<last event>`, so nothing is missed. `start` events also trigger a run, so a recovery shows as *resolved* within seconds.
 - **The proxy change was minimal:** only `GET /events` was added to the allowlist. It shows names, images, labels, exit codes and times, but no environment variables. It was validated with `haproxy -c` before the restart, and `tests.check_proxy` now checks 19 rules, including `POST /events` → 403.
 - **systemd** (`lookout-investigate@.service` + a drop-in per unit, `deploy/install-onfailure.sh`): caddy, discordbot, docker and the three cloudflared units get `OnFailure=lookout-investigate@%n.service`. The drop-in only *adds* that line, and no unit needed restarting. Honest limit: units with `Restart=always/on-failure` are restarted by systemd first, so the hook fires only when systemd gives up (crash loop). A single crash that recovers is caught by the hourly timer.
+- **Known noise: Docker's veth interfaces.** Every container stop makes networkd-dispatcher/networkctl log `Interface "vethXXXX" not found`, because Docker has removed the container's virtual interface. A `[[journal.known_noise]]` entry (`^Interface "veth[0-9a-f]+" not found\.?$`, with that reason) counts these as noise. A real interface (`eth0`, `wlan0`) going missing is still an error, and a test checks both.
 - **Facts first, AI afterwards.** A run sends the facts, commits state and sends the heartbeat *before* asking the model. The explanation is saved separately and **added by editing the same Discord message**. This fixed a real gap: before, a slow model (60–250 s on this CPU) delayed the alert itself. The dashboard shows the incident at once, with "AI: being written…".
 - **One run at a time.** A file lock in the state directory queues runs started by the timer, an event or a hook.
 - **Measured:** the demo DB container crashed at 03:59:31 and the incident was recorded **9.3 s** later: about 3 s of debounce plus about 6 s of collection. Before, detection could take up to 60 minutes.
@@ -548,6 +549,13 @@ python3 -m venv .venv && .venv/bin/pip install pytest
 ## Secrets
 
 The Discord webhook and Kuma push URLs live in `.env` (gitignored, `chmod 600`, created by hand from `.env.example`). systemd loads it with `EnvironmentFile=` (as root, before the sandbox starts), and the code only reads environment variables. Shadow mode needs only `KUMA_PUSH_URL` (and optionally `DISCORD_SHADOW_WEBHOOK_URL`).
+
+**Discord is optional** (`[notify] discord` in `config.toml`, currently **false**: dashboard only). When off, Lookout never calls Discord and needs no `DISCORD_*` secrets. Everything else is unchanged:
+- incidents and history are recorded for the dashboard
+- issues count as reported, so cooldowns and reminders work
+- the Uptime Kuma heartbeat is sent, and a run is successful without Discord
+
+The Discord code and its tests stay, so setting it back to `true` restores the messages.
 
 ## Roadmap
 

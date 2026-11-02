@@ -17,7 +17,8 @@ SCHEMA = [
         flags INTEGER, reported INTEGER, suppressed INTEGER, resolved INTEGER,
         delivered INTEGER, ai_status TEXT, model TEXT,
         snapshot TEXT,               -- JSON: the status grid at that run (see snapshot())
-        trigger TEXT)""",            # what started it: timer, docker event, OnFailure hook
+        trigger TEXT,                -- what started it: timer, docker event, OnFailure hook
+        discord INTEGER)""",         # 1 = Discord delivery on, 0 = dashboard only
     """CREATE TABLE IF NOT EXISTS incidents (
         id INTEGER PRIMARY KEY, issue_key TEXT, rule TEXT, kind TEXT, severity TEXT, summary TEXT,
         status TEXT,                 -- open | resolved
@@ -34,7 +35,7 @@ SCHEMA = [
 
 
 # Columns added after the first release: (table, column, type). Old state files get them on open.
-MIGRATIONS = [("incidents", "crash", "TEXT"), ("runs", "trigger", "TEXT")]
+MIGRATIONS = [("incidents", "crash", "TEXT"), ("runs", "trigger", "TEXT"), ("runs", "discord", "INTEGER")]
 PENDING = {"ok": False, "reason": "pending"}   # facts sent; the explanation is still being written
 
 
@@ -73,18 +74,19 @@ def snapshot(facts, known_containers=None):
     }
 
 
-def record(conn, *, started_at, finished_at, mode, timings, result, ai, delivered, snapshot, trigger=None):
+def record(conn, *, started_at, finished_at, mode, timings, result, ai, delivered, snapshot, trigger=None,
+           discord=True):
     """Store one run and update incidents. Returns the run id."""
     ai = ai or {}
     run_id = conn.execute(
         "INSERT INTO runs (started_at, finished_at, mode, collect_ms, detect_ms, llm_ms, report_ms, flags, "
-        "reported, suppressed, resolved, delivered, ai_status, model, snapshot, trigger) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        "reported, suppressed, resolved, delivered, ai_status, model, snapshot, trigger, discord) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         (started_at, finished_at, mode, timings.get("collect_ms"), timings.get("detect_ms"),
          timings.get("llm_ms"), timings.get("report_ms"), len(result["flags"]), len(result["report"]),
          len(result["suppressed"]), len(result["resolved"]), int(delivered),
          None if not ai else ("ok" if ai.get("ok") else ai.get("reason")), ai.get("model"),
-         json.dumps(snapshot), trigger)).lastrowid
+         json.dumps(snapshot), trigger, int(bool(discord)))).lastrowid
 
     explanations = dict(ai.get("alerts", [])) if ai.get("ok") else {}
     now = finished_at

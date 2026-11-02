@@ -34,5 +34,10 @@ def secret(name):
     return value if value and "CHANGE_ME" not in value else None
 
 
+def discord_enabled(cfg):
+    """[notify] discord = false turns Discord off entirely (dashboard only). Default: on."""
+    return bool(cfg.get("notify", {}).get("discord", True))
+
+
 def missing_secrets(names=SECRETS):
     return [n for n in names if secret(n) is None]

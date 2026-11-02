@@ -38,6 +38,15 @@ def harness(monkeypatch, tmp_path):
 
     monkeypatch.setattr(notify, "push_kuma", push)
     monkeypatch.setattr(cli, "COLLECTORS", {"systemd": lambda cfg: h["units"]})
+    real_load = cli.config.load
+    h["discord"] = True                      # the Discord tests below; dashboard-only tests set False
+
+    def load(path=None):
+        cfg = real_load(path)
+        cfg.setdefault("notify", {})["discord"] = h["discord"]
+        return cfg
+
+    monkeypatch.setattr(cli.config, "load", load)
     h["ai"] = {"ok": True, "model": "fake", "summary": "Caddy stopped.",
                "alerts": [("failed_unit:caddy.service", "The web server stopped.")]}
     h["ai_calls"] = 0
@@ -212,3 +221,45 @@ def test_event_hints_and_trigger_are_recorded(harness):
     assert conn.execute("SELECT trigger FROM runs").fetchone()[0] == "systemd OnFailure caddy.service"
     ttd = conn.execute("SELECT time_to_detect_s FROM incidents").fetchone()[0]
     assert 29 <= ttd <= 31                                     # stub: unit failed 30 s before detection
+
+
+# --- Discord off: dashboard only --------------------------------------------------
+
+def test_discord_off_never_calls_discord_and_needs_no_webhook(harness, monkeypatch, capsys):
+    import sqlite3
+    harness["discord"] = False
+    monkeypatch.delenv("DISCORD_WEBHOOK_URL")
+    monkeypatch.setenv("DISCORD_SHADOW_WEBHOOK_URL", "https://discord.com/api/webhooks/2/shadow")
+    for extra in ([], ["--shadow"]):
+        assert cli.main(harness["argv"] + extra) == 0         # a successful run
+    assert harness["sent"] == [] and harness["edits"] == []    # Discord never called, shadow channel included
+    assert [p[0] for p in harness["pushes"]] == ["up", "up"]   # heartbeat still sent
+    assert "recorded for the dashboard, Discord off" in capsys.readouterr().out
+    conn = sqlite3.connect(harness["argv"][1])
+    assert conn.execute("SELECT count(*), max(ai_status) FROM incidents").fetchone() == (1, "ok")  # still recorded + explained
+    assert conn.execute("SELECT discord, delivered FROM runs ORDER BY id").fetchall() == [(0, 0), (0, 0)]
+
+
+def test_discord_off_still_marks_issues_as_reported(harness):
+    harness["discord"] = False
+    assert cli.main(harness["argv"]) == 0
+    assert cli.main(harness["argv"]) == 0
+    assert harness["pushes"][-1] == ("up", "OK · 0 reported, 1 suppressed, 0 resolved")   # cooldown works
+
+
+def test_discord_off_needs_only_the_heartbeat(harness, monkeypatch):
+    harness["discord"] = False
+    monkeypatch.delenv("DISCORD_WEBHOOK_URL")
+    monkeypatch.delenv("KUMA_PUSH_URL")
+    assert cli.main(harness["argv"]) == 2
+
+
+def test_test_sends_refuse_when_discord_is_off(harness):
+    harness["discord"] = False
+    with pytest.raises(SystemExit):
+        cli.main(["--fixture", "tests/fixtures/scenarios/discord_test.json", "--send"])
+
+
+def test_shipped_config_is_dashboard_only():
+    from lookout import config
+    assert config.discord_enabled(config.load()) is False

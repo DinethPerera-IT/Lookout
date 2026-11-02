@@ -28,6 +28,12 @@ window_hours = 24
 pattern = "Timeout occurred while waiting for network connectivity"
 reason = "apt-daily runs before WiFi is fully up; harmless and recurring"
 
+[[journal.known_noise]]
+# Only Docker's virtual interfaces (veth<hex>): a real interface (eth0, wlan0...) going
+# missing is still an error. Seen from networkd-dispatcher and networkctl on every crash.
+pattern = '^Interface "veth[0-9a-f]+" not found\.?$'
+reason = "Docker removes a container's virtual interface when the container stops; networkd-dispatcher then can't find it"
+
 [state]
 # Overridden by $STATE_DIRECTORY (set by systemd) or --state
 default_path = "~/.local/state/lookout/state.sqlite"
@@ -97,6 +103,12 @@ num_predict = 600
 # How long Ollama keeps the model in RAM after a call (Ollama's default here: 60s, so each
 # explanation starts with a cold load). For a live demo: keep_alive = "30m". Unset = Ollama's default.
 # keep_alive = "30m"
+
+[notify]
+# Discord delivery. false = dashboard only: incidents and history are still recorded, issues
+# still count as reported (cooldowns work), and the Uptime Kuma heartbeat is still sent.
+# No DISCORD_* secrets are needed. Set to true to send reports to Discord again.
+discord = false
 
 [dashboard]
 # python -m lookout.dashboard: read-only web UI. Keep it on localhost; Caddy fronts it on the LAN.
