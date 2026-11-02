@@ -335,3 +335,40 @@ def test_a_new_incident_is_listed_above_an_older_open_one():
     record(s, result([old]), 1000)
     record(s, result([new], suppressed=[{"key": old["key"], "reason": "cooldown"}]), 2000)
     assert [i["issue_key"] for i in api.incidents(s.conn)["incidents"]] == ["container_down:b", "container_down:a"]
+
+
+def test_dashboard_shows_the_truth_while_resolved_notices_are_held_back(cfg):
+    """Seen live: the port container failed, recovered (notice sent), failed and recovered again.
+    The second "resolved" notice is held back for 6 h (flap protection, for notifications), but the
+    dashboard kept showing the running container as Open. It must follow the real state."""
+    from lookout import pipeline
+    s = State(":memory:")
+    t0 = 1_800_000_000
+
+    def run(minute, state):
+        status = "Up 2 hours" if state == "running" else "Exited (1) 3 seconds ago"
+        facts = {"window_minutes": 60, "docker": {"ok": True, "checked_at": t0 + minute * 60, "by_source": {},
+                 "error_templates": {}, "containers": [{"name": "web", "id": "abc", "image": "x", "state": state,
+                                                        "status": status, "health": "none"}]}}
+        res = pipeline.run(facts, s, cfg, t0 + minute * 60)
+        history.record(s.conn, started_at=t0 + minute * 60, finished_at=t0 + minute * 60 + 5, mode="live",
+                       timings={}, result=res, ai=None, delivered=True, snapshot={})
+        return res
+
+    def states():
+        return [r[0] for r in s.conn.execute("SELECT status FROM incidents ORDER BY id")]
+
+    run(0, "running")
+    assert run(10, "exited")["report"][0]["reason"] == "new"
+    assert run(20, "running")["resolved"]                       # first recovery: notice sent
+    assert run(30, "exited")["report"][0]["reason"] == "reappeared"
+    quiet = run(40, "running")
+    assert quiet["resolved"] == []                              # Discord: second notice held back (unchanged)
+    assert states() == ["resolved", "resolved"]                 # dashboard: running again, so not Open
+    last = s.conn.execute("SELECT updates FROM incidents ORDER BY id DESC").fetchone()[0]
+    assert "held back" in json.loads(last)[-1]["reason"]
+    flap = run(50, "exited")
+    assert flap["report"] == [] and flap["suppressed"][0]["reason"] == "flapping"   # no new message
+    assert states() == ["resolved", "resolved", "open"]         # but the dashboard shows it broken again
+    run(60, "running")
+    assert states() == ["resolved", "resolved", "resolved"]

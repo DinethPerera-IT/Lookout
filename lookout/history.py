@@ -97,16 +97,7 @@ def record(conn, *, started_at, finished_at, mode, timings, result, ai, delivere
         if row is None or entry["reason"] in ("new", "reappeared"):
             if row is not None:  # shouldn't happen, but never leave two open incidents for one issue
                 _close(conn, row, now, "superseded")
-            failed_at = entry.get("failed_at")
-            conn.execute(
-                "INSERT INTO incidents (issue_key, rule, kind, severity, summary, status, opened_run, opened_at, "
-                "last_seen, failed_at, detected_at, time_to_detect_s, evidence, cause, cause_matches, next_checks, "
-                "updates, crash) VALUES (?, ?, ?, ?, ?, 'open', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                (entry["key"], entry.get("rule"), entry.get("kind"), entry["severity"], entry["summary"], run_id,
-                 now, now, failed_at, entry.get("detected_at", now), _ttd(entry, now),
-                 json.dumps(entry.get("evidence", [])), entry.get("cause"),
-                 json.dumps(entry.get("cause_matches", [])), json.dumps(entry.get("next_checks", [])),
-                 json.dumps([update]), json.dumps(entry.get("crash")) if entry.get("crash") else None))
+            _insert(conn, entry, run_id, now)
             row = _open(conn, entry["key"])
         else:
             conn.execute(
@@ -127,8 +118,17 @@ def record(conn, *, started_at, finished_at, mode, timings, result, ai, delivere
                  explanations.get(entry["key"]), json.dumps(entry.get("next_checks", [])), row["id"]))
     now = finished_at
     for entry in result["suppressed"]:
-        conn.execute("UPDATE incidents SET last_seen = ? WHERE issue_key = ? AND status = 'open'",
-                     (now, entry["key"]))
+        if _open(conn, entry["key"]) is None and "summary" in entry:
+            # Failing again while its notices are held back (flapping): no new message goes out,
+            # but the dashboard must show it as broken again.
+            _insert(conn, {**entry, "reason": entry["reason"]}, run_id, now)
+        else:
+            conn.execute("UPDATE incidents SET last_seen = ? WHERE issue_key = ? AND status = 'open'",
+                         (now, entry["key"]))
+    for key in result.get("recovered_quietly", []):
+        row = _open(conn, key)
+        if row is not None:
+            _close(conn, row, now, "recovered (resolved notice held back: flapping)")
     for entry in result["resolved"]:
         row = _open(conn, entry["key"])
         if row is not None:
@@ -138,6 +138,20 @@ def record(conn, *, started_at, finished_at, mode, timings, result, ai, delivere
         if row is not None:
             _close(conn, row, now, "expired")
     return run_id
+
+
+def _insert(conn, entry, run_id, now):
+    update = {"at": now, "reason": entry["reason"], "severity": entry["severity"]}
+    failed_at = entry.get("failed_at")
+    conn.execute(
+        "INSERT INTO incidents (issue_key, rule, kind, severity, summary, status, opened_run, opened_at, "
+        "last_seen, failed_at, detected_at, time_to_detect_s, evidence, cause, cause_matches, next_checks, "
+        "updates, crash) VALUES (?, ?, ?, ?, ?, 'open', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        (entry["key"], entry.get("rule"), entry.get("kind"), entry["severity"], entry["summary"], run_id,
+         now, now, failed_at, entry.get("detected_at", now), _ttd(entry, now),
+         json.dumps(entry.get("evidence", [])), entry.get("cause"),
+         json.dumps(entry.get("cause_matches", [])), json.dumps(entry.get("next_checks", [])),
+         json.dumps([update]), json.dumps(entry.get("crash")) if entry.get("crash") else None))
 
 
 def update_ai(conn, run_id, result, ai, llm_ms):
