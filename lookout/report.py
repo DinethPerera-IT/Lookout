@@ -7,11 +7,12 @@ mentions are defused, and allowed_mentions forbids pings regardless.
 import re
 from datetime import datetime, timezone
 
-COLOR = {"crit": 0xE74C3C, "warn": 0xF1C40F, "resolved": 0x2ECC71}
+COLOR = {"crit": 0xE74C3C, "warn": 0xF1C40F, "resolved": 0x2ECC71, "ai": 0x95A5A6}
 ICON = {"crit": "🔴", "warn": "🟡"}
 REASON = {"new": "new", "worse": "worse", "reappeared": "back again", "reminder": "still active (24 h reminder)"}
-FACTS_LIMIT = 3800      # Discord embed description max is 4096
-RESOLVED_LIMIT = 1500   # whole message (all embeds) max is 6000
+FACTS_LIMIT = 3000      # Discord embed description max is 4096
+AI_LIMIT = 1600
+RESOLVED_LIMIT = 800    # whole message (all embeds) max is 6000
 EVIDENCE_LINES = 3
 EVIDENCE_WIDTH = 200
 
@@ -59,8 +60,20 @@ def title_for(report):
     return f"{ICON[worst]} Lookout: {', '.join(parts)}", COLOR[worst]
 
 
-def build(result, title_prefix=""):
-    """Return the webhook payload, or None when there is nothing to say (stay silent)."""
+def ai_embed(ai, title_prefix, footer, now):
+    """The model's explanation: its own embed, below the facts, clearly labelled."""
+    chunks = [escape(ai["summary"])] + [f"• `{escape(key).replace('`', '')}`: {escape(text)}" for key, text in ai["alerts"]]
+    return {"title": title_prefix + f"🤖 AI explanation · unverified ({ai['model']})", "color": COLOR["ai"],
+            "description": fit(chunks, AI_LIMIT, "…and {n} more"),
+            "footer": {"text": "Written by a local model from the facts above; it cannot change them"},
+            "timestamp": now}
+
+
+def build(result, title_prefix="", ai=None):
+    """Return the webhook payload, or None when there is nothing to say (stay silent).
+
+    `ai` is the result of llm.explain(): rendered below the facts when ok, otherwise
+    the facts embed notes (in code-written words) that no explanation is available."""
     report, resolved = result["report"], result["resolved"]
     if not report and not resolved:
         return None
@@ -69,6 +82,9 @@ def build(result, title_prefix=""):
     b = result.get("baseline", {})
     if b.get("warming_up"):
         footer += f" · error baseline warming up ({b['hours']}/{b['required_hours']} h)"
+    facts_footer = footer
+    if report and ai is not None and not ai["ok"]:
+        facts_footer += f" · AI explanation unavailable: {ai['reason']}"
     embeds = []
 
     if report:
@@ -83,7 +99,9 @@ def build(result, title_prefix=""):
         title, color = title_for(report)
         embeds.append({"title": title_prefix + title, "color": color,
                        "description": fit(chunks, FACTS_LIMIT, "…and {n} more (full list: journalctl -u lookout)"),
-                       "footer": {"text": footer}, "timestamp": now})
+                       "footer": {"text": facts_footer}, "timestamp": now})
+        if ai is not None and ai["ok"]:
+            embeds.append(ai_embed(ai, title_prefix, footer, now))
 
     if resolved:
         lines = [f"✅ {escape(r['summary'])}" for r in resolved]

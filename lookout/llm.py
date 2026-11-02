@@ -8,6 +8,8 @@ check is dropped entirely and the report goes out with the facts alone.
 """
 import json
 import re
+import urllib.error
+import urllib.request
 
 SYSTEM_PROMPT = """You explain monitoring alerts for the owner of a small home server, who is learning networking.
 
@@ -43,6 +45,8 @@ SCHEMA = {
 MAX_SUMMARY = 500
 MAX_EXPLANATION = 450
 EVIDENCE_LINES = 3
+MAX_ALERTS = 8          # more than this and the prompt gets long and slow; facts alone are clearer anyway
+FORMATS = {"schema": SCHEMA, "json": "json", "plain": None}
 
 # Words that would let the model play down a deterministic alert.
 DISMISSIVE = re.compile(
@@ -66,8 +70,23 @@ HOST_ENTITIES = [
     "sshd", "cron", "netplan", "wpa_supplicant", "systemd-networkd", "nginx", "apache", "mysql", "redis",
 ]
 
+# Different names for the same thing ("Tailscale" is the product behind tailscaled).
+ALIASES = {"tailscale": "tailscaled", "pi-hole": "pihole", "postgresql": "postgres", "kuma": "uptime-kuma"}
+
+# Softening a fact ("node-exporter might be down"). Possible *causes* are fine
+# ("this can happen when the disk is full"); doubting the alert's state is not.
+HEDGING = re.compile(
+    r"(?i)\b(?:might|may|could|possibly|perhaps|seems? to|appears? to)\s+(?:also\s+|have\s+|be\s+|been\s+)*"
+    r"(?:down|failed|failing|full|stopped|crashed|offline|unreachable|unhealthy|restarting|broken|out of)\b")
+
 _NUMBER = re.compile(r"(?<![\w.])\d+(?:\.\d+)?(?![\w])")
 _ALERT_ID = re.compile(r"\bF\d+\b")
+_SPELLED = {w: i for i, w in enumerate("zero one two three four five six seven eight nine ten eleven twelve".split())}
+_UNITS = {"%": ("%", 1), "percent": ("%", 1), "second": ("s", 1), "minute": ("s", 60), "min": ("s", 60),
+          "hour": ("s", 3600), "h": ("s", 3600), "day": ("s", 86400), "error": ("errors", 1), "time": ("times", 1)}
+_QUANTITY = re.compile(
+    r"(?i)(?<![\w.])(\d+(?:\.\d+)?|" + "|".join(_SPELLED) + r")[\s-]*"
+    r"(%|(?:percent|seconds?|minutes?|min|hours?|h|days?|errors?|times?)\b)")
 
 
 def alert_lines(flags):
@@ -119,7 +138,28 @@ def _numbers(text):
 
 def _entities(text):
     lowered = text.lower()
-    return {e for e in HOST_ENTITIES if re.search(r"(?<![\w-])" + re.escape(e) + r"(?![\w-])", lowered)}
+    return {ALIASES.get(e, e) for e in HOST_ENTITIES
+            if re.search(r"(?<![\w-])" + re.escape(e) + r"(?![\w-])", lowered)}
+
+
+def _alert_quantities(text):
+    """Quantities in our own alert wording, where some units are implied:
+    "3x" means 3 times, and a spike's "threshold 5" is 5 errors."""
+    text = re.sub(r"(?<![\w.])(\d+)x\b", r"\1 times", text)
+    text = re.sub(r"\bthreshold (\d+(?:\.\d+)?)", r"threshold \1 errors", text)
+    return _quantities(text)
+
+
+def _quantities(text):
+    """{(unit, value)} for numbers with a unit; spelled numbers count, time is in seconds."""
+    found = set()
+    for number, unit in _QUANTITY.findall(text):
+        value = _SPELLED.get(number.lower())
+        value = float(number) if value is None else float(value)
+        unit = unit.lower()
+        kind, scale = _UNITS.get(unit) or _UNITS.get(unit.rstrip("s")) or (unit, 1)
+        found.add((kind, value * scale))
+    return found
 
 
 def validate(raw, flags):
@@ -146,8 +186,12 @@ def validate(raw, flags):
         problems.append("too long")
     if invented := sorted(_numbers(output) - _numbers(source)):
         problems.append(f"numbers not in the alerts: {[f'{n:g}' for n in invented]}")
+    if invented := sorted(_quantities(output) - _alert_quantities(source)):
+        problems.append(f"quantities not in the alerts: {[f'{v:g} {k}' for k, v in invented]}")
     if invented := sorted(_entities(output) - _entities(source)):
         problems.append(f"services not in the alerts: {invented}")
+    if m := HEDGING.search(output):
+        problems.append(f"hedges a fact: {m.group(0)!r}")
     if m := DISMISSIVE.search(output):
         problems.append(f"dismissive wording: {m.group(0)!r}")
     if m := COMMANDS.search(output):
@@ -155,3 +199,73 @@ def validate(raw, flags):
     if m := INJECTION_ECHO.search(output):
         problems.append(f"repeats untrusted content: {m.group(0)!r}")
     return (None if problems else answer), problems
+
+
+# --- calling the model --------------------------------------------------------
+
+def ollama_chat(cfg, messages, model=None, mode=None, send_think_false=True, keep_alive=None,
+                opener=urllib.request.urlopen):
+    """One non-streaming /api/chat call. With stream off, Ollama sends nothing until
+    the answer is complete, so the socket timeout bounds the whole generation."""
+    l = cfg["llm"]
+    body = {"model": model or l["model"], "messages": messages, "stream": False,
+            "options": {"temperature": 0, "seed": 42, "num_ctx": l["num_ctx"], "num_predict": l["num_predict"]}}
+    fmt = FORMATS[mode or l["output_mode"]]
+    if fmt is not None:
+        body["format"] = fmt
+    if send_think_false:
+        body["think"] = False
+    if keep_alive is not None:
+        body["keep_alive"] = keep_alive
+    req = urllib.request.Request(l["url"] + "/api/chat", data=json.dumps(body).encode(),
+                                 headers={"Content-Type": "application/json"})
+    with opener(req, timeout=l["timeout_seconds"]) as resp:
+        return json.load(resp)
+
+
+_LINK = re.compile(r"\[([^\]]*)\]\([^)]*\)|https?://\S+|www\.\S+")
+_CONTROL = re.compile(r"[\x00-\x1f\x7f]+")
+
+
+def sanitize(text):
+    """Defence in depth for accepted answers: no links, no control characters."""
+    text = _LINK.sub(lambda m: m.group(1) if m.group(1) else "[link removed]", text)
+    return _CONTROL.sub(" ", text).strip()
+
+
+def problem_kind(problem):
+    """'dismissive wording: \'harmless\'' -> 'dismissive wording'. The quoted part came
+    from the model, so it never goes into a report."""
+    return re.split(r"[:\[]", problem, maxsplit=1)[0].strip()
+
+
+def explain(cfg, entries, opener=urllib.request.urlopen):
+    """Ask the model to explain the flags being reported. Never raises.
+
+    Returns {"ok": True, "model", "summary", "alerts": [(flag key, explanation)]}
+    or {"ok": False, "reason": ...} where the reason is always written by this code.
+    """
+    if len(entries) > MAX_ALERTS:
+        return {"ok": False, "reason": f"more than {MAX_ALERTS} alerts"}
+    timeout = cfg["llm"]["timeout_seconds"]
+    try:
+        resp = ollama_chat(cfg, build_messages(entries), opener=opener)
+    except urllib.error.HTTPError as e:
+        return {"ok": False, "reason": f"Ollama returned HTTP {e.code}"}
+    except TimeoutError:
+        return {"ok": False, "reason": f"no answer within {timeout} s"}
+    except urllib.error.URLError as e:
+        if isinstance(e.reason, TimeoutError):
+            return {"ok": False, "reason": f"no answer within {timeout} s"}
+        return {"ok": False, "reason": "Ollama unreachable"}
+    except Exception as e:
+        # The explanation is optional: whatever goes wrong here, the facts still go out.
+        return {"ok": False, "reason": f"unexpected error ({type(e).__name__})"}
+    content = (resp.get("message") or {}).get("content", "") if isinstance(resp, dict) else ""
+    answer, problems = validate(content, entries)
+    if answer is None:
+        return {"ok": False, "reason": "answer failed checks (" + ", ".join(
+            dict.fromkeys(problem_kind(p) for p in problems)) + ")"}
+    by_id = {a["id"].strip(): a["explanation"] for a in answer["alerts"]}
+    return {"ok": True, "model": cfg["llm"]["model"], "summary": sanitize(answer["summary"]),
+            "alerts": [(e["key"], sanitize(by_id[f"F{i}"])) for i, e in enumerate(entries, 1)]}

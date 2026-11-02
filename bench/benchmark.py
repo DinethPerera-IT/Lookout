@@ -38,7 +38,7 @@ from lookout import config, llm
 
 HERE = Path(__file__).parent
 DEFAULT_MODELS = ["qwen3.5:4b", "phi4-mini", "llama3.2:3b"]
-MODES = {"schema": llm.SCHEMA, "json": "json", "plain": None}
+MODES = llm.FORMATS
 NS = 1e9
 
 
@@ -93,14 +93,8 @@ class MemoryWatch(threading.Thread):
 
 
 def chat(cfg, model, messages, mode, think=True):
-    l = cfg["llm"]
-    body = {"model": model, "messages": messages, "stream": False, "keep_alive": 0,
-            "options": {"temperature": 0, "seed": 42, "num_ctx": l["num_ctx"], "num_predict": l["num_predict"]}}
-    if MODES[mode] is not None:
-        body["format"] = MODES[mode]
-    if think:
-        body["think"] = False
-    return api(cfg, "/api/chat", body, timeout=l["timeout_seconds"])
+    # keep_alive 0: unload right after, so the next call starts cold too
+    return llm.ollama_chat(cfg, messages, model=model, mode=mode, send_think_false=think, keep_alive=0)
 
 
 def raw_json_ok(content):

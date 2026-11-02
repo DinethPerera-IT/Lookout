@@ -69,3 +69,27 @@ def test_huge_reports_stay_within_discord_limits():
     total = sum(len(e["title"]) + len(e["description"]) + len(e["footer"]["text"]) for e in payload["embeds"])
     assert all(len(e["description"]) <= 4096 for e in payload["embeds"]) and total <= 6000
     assert "more (full list: journalctl -u lookout)" in payload["embeds"][0]["description"]
+
+
+def test_ai_section_is_separate_labelled_and_defused():
+    ai = {"ok": True, "model": "llama3.2:3b", "summary": "Ping @everyone **now**",
+          "alerts": [("disk:/", "The disk is filling up.")]}
+    facts, ai_embed = report.build(result([entry()]), ai=ai)["embeds"]
+    assert ai_embed["title"] == "🤖 AI explanation · unverified (llama3.2:3b)"
+    assert "@everyone" not in ai_embed["description"] and r"\*\*now\*\*" in ai_embed["description"]
+    assert "`disk:/`: The disk is filling up." in ai_embed["description"]
+    assert "unavailable" not in facts["footer"]["text"]
+
+
+def test_ai_failure_is_noted_on_the_facts():
+    payload = report.build(result([entry()]), ai={"ok": False, "reason": "Ollama unreachable"})
+    assert len(payload["embeds"]) == 1
+    assert payload["embeds"][0]["footer"]["text"].endswith("AI explanation unavailable: Ollama unreachable")
+
+
+def test_limits_hold_with_the_ai_section_too():
+    many = [entry(f"k{i}", summary="x" * 150, evidence=["e" * 500] * 3) for i in range(60)]
+    ai = {"ok": True, "model": "m", "summary": "s" * 500, "alerts": [(f"k{i}", "y" * 450) for i in range(8)]}
+    payload = report.build(result(many, resolved=[{"key": f"r{i}", "summary": "y" * 100} for i in range(60)]), ai=ai)
+    total = sum(len(e["title"]) + len(e["description"]) + len(e["footer"]["text"]) for e in payload["embeds"])
+    assert total <= 6000 and len(payload["embeds"]) == 3

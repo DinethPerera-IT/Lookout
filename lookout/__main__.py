@@ -7,7 +7,7 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
-from . import config, notify, pipeline, report
+from . import config, llm, notify, pipeline, report
 from .collectors import docker, host, journal, prometheus, systemd
 from .state import State
 
@@ -67,9 +67,19 @@ def seed_baselines(state, cfg, facts, now):
             facts["docker_baseline_seed"] = {"ok": False, "error": f"{type(e).__name__}: {e}"}
 
 
-def counts(result):
-    return (f"{len(result['report'])} reported, {len(result['suppressed'])} suppressed, "
+def counts(result, ai=None):
+    text = (f"{len(result['report'])} reported, {len(result['suppressed'])} suppressed, "
             f"{len(result['resolved'])} resolved")
+    if ai is not None:
+        text += " · AI: " + ("ok" if ai["ok"] else ai["reason"])
+    return text
+
+
+def explain(args, cfg, result):
+    """The optional AI layer: only for reported flags, and only after detection is done."""
+    if args.no_llm or not result["report"]:
+        return None
+    return llm.explain(cfg, result["report"])
 
 
 def run(args, cfg):
@@ -82,10 +92,11 @@ def run(args, cfg):
     try:
         seed_baselines(state, cfg, facts, now)
         result = pipeline.run(facts, state, cfg, now)
-        payload = report.build(result)
+        ai = explain(args, cfg, result)  # never raises; on any failure the facts go out alone
+        payload = report.build(result, ai=ai)
         if args.dry_run:
-            print(json.dumps({"result": result, "discord_payload": payload,
-                              "heartbeat": f"would push status=up msg='OK · {counts(result)}'"}, indent=2))
+            print(json.dumps({"result": result, "ai": ai, "discord_payload": payload,
+                              "heartbeat": f"would push status=up msg='OK · {counts(result, ai)}'"}, indent=2))
             return 0
         if payload:
             try:
@@ -101,28 +112,29 @@ def run(args, cfg):
     finally:
         state.close()  # without commit() this rolls back
     try:
-        notify.push_kuma(config.secret("KUMA_PUSH_URL"), "up", f"OK · {counts(result)}",
+        notify.push_kuma(config.secret("KUMA_PUSH_URL"), "up", f"OK · {counts(result, ai)}",
                          (time.time() - started) * 1000)
     except notify.NotifyError as e:
         print(f"lookout: {e}", file=sys.stderr)
         return 1
-    print(f"lookout: {counts(result)}" + (" (report sent)" if payload else " (nothing to send)"))
+    print(f"lookout: {counts(result, ai)}" + (" (report sent)" if payload else " (nothing to send)"))
     return 0
 
 
 def run_fixture(args, cfg):
     scenario, results = pipeline.run_scenario(args.fixture, cfg)
-    payloads = [report.build(r, title_prefix="🧪 TEST · ") for r in results]
     if args.send:
-        payload = next((p for p in reversed(payloads) if p), None)
-        if payload is None:
+        result = next((r for r in reversed(results) if r["report"] or r["resolved"]), None)
+        if result is None:
             print("lookout: this scenario produces no report to send", file=sys.stderr)
             return 1
-        notify.send_discord(config.secret("DISCORD_WEBHOOK_URL"), payload)
-        print("lookout: sent the scenario's last report to Discord, marked as a test")
+        ai = explain(args, cfg, result)
+        notify.send_discord(config.secret("DISCORD_WEBHOOK_URL"), report.build(result, "🧪 TEST · ", ai=ai))
+        print(f"lookout: sent the scenario's last report to Discord, marked as a test ({counts(result, ai)})")
         return 0
-    for r, p in zip(results, payloads):
-        r["discord_payload"] = p
+    for r in results:
+        r["ai"] = explain(args, cfg, r)
+        r["discord_payload"] = report.build(r, "🧪 TEST · ", ai=r["ai"])
     print(json.dumps({"description": scenario.get("description"), "runs": results}, indent=2))
     return 0
 
@@ -136,6 +148,7 @@ def main(argv=None):
     parser.add_argument("--fixture", help="run a scenario file (tests/fixtures/scenarios/*.json) in memory")
     parser.add_argument("--send", action="store_true",
                         help="with --fixture: send the scenario's last report to Discord as a test")
+    parser.add_argument("--no-llm", action="store_true", help="skip the AI explanation (facts only)")
     parser.add_argument("--env-file", help="load secrets from this file (systemd uses EnvironmentFile= instead)")
     parser.add_argument("--config", help="path to config.toml")
     parser.add_argument("--state", help="path to the SQLite state file")

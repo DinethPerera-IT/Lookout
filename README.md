@@ -4,7 +4,7 @@
 
 An hourly, read-only job for my homelab. It collects logs and metrics, uses **deterministic rules** to decide whether anything is unusual, and posts the flagged facts to Discord. A **local** LLM (Ollama) adds a plain-English explanation on top. When nothing is unusual it stays silent.
 
-> Status: **Phase 5 of 8 (Discord report + Kuma heartbeat) complete.** Not scheduled yet: it only runs when started by hand.
+> Status: **Phase 7 of 8 (LLM explanation layer) built.** Not scheduled yet: it only runs when started by hand.
 
 ## What is it?
 
@@ -262,11 +262,49 @@ Full report with every answer: [`bench/results/2026-10-29-1307.md`](bench/result
 - **The known "qwen3.5 ignores `format` when thinking is off" issue didn't reproduce** on Ollama 0.32.5 (100% raw JSON). Detecting it rather than assuming it meant the json/plain fallback modes never had to run.
 - On this CPU, generation runs at about 2–3 tokens/s, so a summary takes about one minute. That's fine for an hourly job and far inside the 600 s timeout.
 
+### Phase 7: the AI explanation layer
+
+**What is it?** When Lookout reports something, the local model (llama3.2:3b) writes a short plain-English explanation of each flag: what it means and what could possibly cause it. It appears in its own grey section, **below** the facts, titled "🤖 AI explanation · unverified".
+
+**How does it work?**
+
+1. **Only after the decision is made.** Detection, dedup and the send decision all happen first. The model is called only if something is being reported, and only after metrics were collected, so its RAM use can't distort them.
+2. **One call, bounded.** One non-streaming request to Ollama with `think: false`, temperature 0, a JSON schema, and a 600 s timeout. More than 8 flags at once: no AI section (facts are clearer).
+3. **Every answer is checked before anyone sees it** (`lookout/llm.py`). It must:
+   - be valid JSON covering every flag exactly once
+   - contain no number, number-with-unit or service name that isn't in the alerts
+   - not soften a fact ("might be down")
+   - use no dismissive wording ("harmless", "can be ignored")
+   - suggest no commands
+   - repeat nothing from hostile evidence (links, `@mentions`, "ignore instructions")
+   Accepted answers are sanitized too (links removed, mentions defused, markdown escaped).
+4. **Any failure means facts only.** A timeout, an unreachable Ollama, a broken answer or a failed check all give the same result: the report goes out without the AI section, with a code-written note in the footer ("AI explanation unavailable: answer failed checks (quantities not in the alerts)"). The run still succeeds, and the Kuma heartbeat records the AI status. Nothing the model writes ever reaches that note.
+
+**Improving the checker with real answers.** The benchmark saved every real answer, so the new checks were tested against them without calling a model. A regression test (`tests/test_llm_regression.py`) pins the results:
+
+| Check added | Caught |
+|---|---|
+| Name aliases ("Tailscale" = `tailscaled`) | removed qwen3.5's false positive |
+| Hedging a fact | phi4-mini's "node-exporter *might* also be down" |
+| Numbers must match the alert *with their unit* (spelled numbers count, time compared in seconds) | phi4-mini's "five times" |
+
+The first version of the unit check also failed three *correct* llama3.2:3b answers ("threshold of 5 errors", "three times"), because Lookout's own alert text implies those units ("threshold 5", "3x"). The validator now reads those implied units. After that, all of llama3.2:3b's answers pass again, and only the real problems are flagged.
+
+**Live test** (`discord_test.json`, real llama3.2:3b, about 1 minute per call):
+- **The hostile run:** explained both alerts and repeated nothing from the injected line.
+- **The disk run:** the explanation was rejected. The model wrote "12% of available space left": correct arithmetic, but a *derived* number. Small models often get arithmetic wrong, so derived numbers are rejected on purpose, and the facts went out alone.
+
+**Known limits (honest):**
+- The checks can't catch a number from the alerts used in the wrong context ("restart loop for the past 4 seconds" from "Restarting … 4 seconds ago").
+- They can't catch a cause stated as certain ("errors *due to* a failed connection").
+- That's why the section is labelled unverified, and why v2 adds 👍/👎 feedback to measure how often it's actually right.
+
 ## Usage
 
 ```bash
 python3 -m lookout --dry-run            # full run, but print the Discord payload instead of sending
-python3 -m lookout --env-file .env      # real run: send if needed, then heartbeat
+python3 -m lookout --env-file .env      # real run: send if needed (with AI explanation), then heartbeat
+python3 -m lookout --dry-run --no-llm   # skip the AI explanation
 python3 -m lookout --env-file .env --fixture tests/fixtures/scenarios/discord_test.json --send   # test message
 python3 -m lookout --dry-run --stage collect   # just the collected facts
 python3 -m lookout --fixture tests/fixtures/scenarios/flapping.json   # replay a scenario
@@ -302,5 +340,5 @@ Longer-term plans (v2, v3) and the core principle behind them: [`ROADMAP.md`](RO
 | 4 | Docker via read-only socket proxy | ✅ |
 | 5 | Discord report + Kuma heartbeat | ✅ |
 | 6 | Model benchmark: llama3.2:3b picked over phi4-mini and qwen3.5:4b | ✅ |
-| 7 | LLM explanation layer with validation and fallback | |
+| 7 | LLM explanation layer with validation and fallback | ✅ |
 | 8 | systemd timer, dedicated user, sandboxing | |
