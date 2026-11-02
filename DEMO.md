@@ -14,7 +14,7 @@ Measured on this server (i5-4590, CPU-only, llama3.2:3b):
 
 ## The night before / morning of
 
-1. **Pick the version.** `cd ~/ops-summary && git checkout master && .venv/bin/pytest -q` (all green). The last tag is `demo-8`.
+1. **Pick the version.** `cd ~/ops-summary && git checkout main && .venv/bin/pytest -q` (all green). The latest tag is `demo-12`.
 2. **Secrets** (you create this yourself): create `~/ops-summary/.env` (see README → Phase 8) with `KUMA_PUSH_URL`, then `chmod 600`. Discord is off (`[notify] discord = false`): the dashboard is the only output, so no Discord URLs are needed.
 3. **Install and start** (shadow mode: real runs, reports only to the test channel):
    ```bash
@@ -84,7 +84,7 @@ cd ~/lookout-static && python3 -m http.server 8000
 All four tabs work. Nothing is fetched from the internet (no CDN).
 
 ### Roll back to a demo tag
-Every step of the build is tagged, from `demo-0` (Phase 8 baseline) to `demo-8` (this script).
+Every step of the build is tagged, from `demo-0` (Phase 8 baseline) to `demo-12` (new dashboard design and live-test fixes).
 ```bash
 cd ~/ops-summary
 git tag -l 'demo-*'                 # list them
@@ -93,7 +93,7 @@ git checkout demo-7                 # e.g. go back one step (detached HEAD, noth
 sudo deploy/install.sh              # copy that version to /opt/lookout for the services
 sudo systemctl restart lookout-watch lookout-dashboard
 # afterwards, back to the latest:
-git checkout master && sudo deploy/install.sh && sudo systemctl restart lookout-watch lookout-dashboard
+git checkout main && sudo deploy/install.sh && sudo systemctl restart lookout-watch lookout-dashboard
 ```
 Note: `demo-0` to `demo-4` predate the watcher, and `demo-0` predates the dashboard, so the further back you go, the less there is to show.
 

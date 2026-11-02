@@ -25,7 +25,7 @@ Nothing is fetched from the internet: no CDN, no build step.
 
 I designed Lookout, set its rules (above all: code decides, the AI only explains), and reviewed and tested every phase before it was committed. The build log below records each phase: what was built, how it was tested, and what went wrong along the way.
 
-> Status: v1 complete (phases 1–8) plus the expo build: crash evidence, cause classification, reacting in seconds, recent changes and the dashboard. Installed as systemd units in **shadow mode**. Demo script: [`DEMO.md`](DEMO.md).
+> Status: v1 complete (phases 1–8) plus the expo build: crash evidence, cause classification, reacting in seconds, recent changes and the dashboard. Running on my homelab as sandboxed systemd units (hourly timer, Docker-event watcher, `OnFailure=` hooks, dashboard), **dashboard only** (Discord delivery switched off in `config.toml`). Demo script: [`DEMO.md`](DEMO.md).
 
 ## What is it?
 
@@ -534,6 +534,28 @@ The classifier uses `after_recent_change` when a change happened shortly before 
   - *Read-only proxy:* the whole haproxy allowlist, plus the recorded `python -m tests.check_proxy --record` results (19/19, including POST → 403).
 
   These examples are a static file built by the real code paths (`python -m lookout.dashboard.sample`), not an API response: the API scrubs everything, so it couldn't show a "before". The proxy proof is *recorded*, not run from the page, because a read-only dashboard has no business sending requests to Docker (a test checks the dashboard code never references the proxy).
+
+### Dashboard design and live-test fixes
+
+**New design** (presentation only: `index.html`, `style.css`, `app.js`, `favicon.svg`). It has a sidebar, a system summary, a "next priority" card, an incident inbox with filters and search, 1 h/6 h/24 h timelines, and restyled incident, pipeline, benchmark and security pages. Backend, API and safety model are unchanged: the strings are still text-only, with no external requests, and the CSP is unchanged.
+
+The wording fits a single-person homelab: "Your server, at a glance". The priority card names the **affected service** (the container or unit, taken from the incident key), and the next step is "Review the evidence and the suggested read-only checks."
+
+**Found by watching it live, then fixed:**
+- **Frozen ages in titles.** Docker's status text ("Exited (1) 3 seconds ago") is relative to when the incident was recorded, so it's wrong a minute later. Titles keep the state and exit code ("Exited (1)").
+- **The model read the same text as a duration** ("down for 3 seconds"). The prompt now drops the age too. With the number gone from the alert, an answer that still invents it fails validation, and a test uses the exact live answer.
+- **Incident order.** The list was sorted by "last seen", which every later run refreshes for an open incident, so a brand-new incident appeared *below* an older one. It's now sorted by when an incident opened (or resolved).
+- **Docker said `OOMKilled=false` for a real OOM kill** in one live run. Lookout still classified it `out_of_memory` from the kernel's own OOM messages for that container, which is why it doesn't rely on Docker's flag alone.
+
+**Live test** (dashboard only, model on):
+
+| Crash | Detected in | Cause |
+|---|---|---|
+| OOM | 11.2 s | `out_of_memory` |
+| Database refused | 9.4 s | `dependency_unreachable` |
+| Port in use | 9.3–9.4 s | `port_in_use` |
+
+`demo.sh reset` then resolved all three in about 10 s.
 
 ## Usage
 
