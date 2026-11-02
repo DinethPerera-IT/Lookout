@@ -396,6 +396,29 @@ browser ──GET──> lookout.dashboard (http.server) ──> api.py ──> 
 - ❌ more hand-written code (routing, SSE, rendering), and no component library
 - ❌ `http.server` isn't built for the open internet. That's fine here: it binds to localhost, Caddy fronts it on the LAN/Tailscale only, and it's read-only anyway
 
+### Demo lab (`deploy/demo/`)
+
+**What is it?** Three tiny containers that break on demand, so the expo demo shows real failures instead of slides.
+
+| Container | Failure (`deploy/demo/demo.sh crash-…`) | What really happens |
+|---|---|---|
+| `lookout-demo-oom` | `crash-oom` | allocates memory under a 64 MB limit until the kernel's OOM killer stops it: exit 137, `OOMKilled=true`, plus a kernel `Memory cgroup out of memory` line naming the container |
+| `lookout-demo-db` | `crash-db` | its database `orders-db:5432` isn't there: 3× connection refused, then an uncaught `ECONNREFUSED` stack trace, exit 1 |
+| `lookout-demo-port` | `crash-port` | a config reload tries to bind :8080, which its own metrics listener holds: `EADDRINUSE` stack trace, exit 1 |
+
+`demo.sh start | crash-oom | crash-db | crash-port | reset | status | remove`.
+
+**How does it work?**
+- Each container runs normally until `demo.sh` sends it `SIGUSR1`, which triggers its failure. One small Node.js script (`app.js`) runs in all three, with a different `DEMO_MODE`.
+- The image is built from the `node:22-alpine` image already on the server, so nothing is pulled.
+- **Isolation:**
+  - an `internal: true` network: no internet, no LAN
+  - no published ports, no volumes
+  - read-only root filesystem, `cap_drop: ALL`, `no-new-privileges`
+  - non-root user, plus memory and pids limits
+  Everything is named and labelled `lookout-demo-*`, so it's obvious what it is and easy to remove.
+- `remove` deletes them. Lookout will then (correctly) report them as gone once.
+
 ## Usage
 
 ```bash

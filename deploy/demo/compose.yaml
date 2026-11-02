@@ -1,0 +1,40 @@
+# Lookout demo lab: three small containers that fail on demand (deploy/demo/demo.sh).
+# Isolated: own internal network (no internet, no LAN), no published ports, no volumes,
+# read-only root filesystem, no capabilities, non-root user, tight memory/pids limits.
+name: lookout-demo
+
+x-hardening: &hardening
+  build: .
+  image: lookout-demo-app:local
+  networks: [lookout-demo]
+  read_only: true
+  cap_drop: [ALL]
+  security_opt: ["no-new-privileges:true"]
+  pids_limit: 64
+  restart: "no"
+  labels:
+    lookout.demo: "true"
+
+services:
+  oom:
+    <<: *hardening
+    container_name: lookout-demo-oom
+    environment: { DEMO_MODE: oom, NODE_OPTIONS: "--max-old-space-size=48" }
+    mem_limit: 64m
+    memswap_limit: 64m          # no swap: hitting the limit means the OOM killer
+  db:
+    <<: *hardening
+    container_name: lookout-demo-db
+    environment: { DEMO_MODE: db }
+    mem_limit: 96m
+    extra_hosts: ["orders-db:127.0.0.1"]   # a database that isn't running: connection refused
+  port:
+    <<: *hardening
+    container_name: lookout-demo-port
+    environment: { DEMO_MODE: port }
+    mem_limit: 96m
+
+networks:
+  lookout-demo:
+    name: lookout-demo
+    internal: true              # no route out
