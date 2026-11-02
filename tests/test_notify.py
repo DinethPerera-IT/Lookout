@@ -88,3 +88,33 @@ def test_placeholder_secrets_count_as_missing(monkeypatch):
     monkeypatch.setenv("DISCORD_WEBHOOK_URL", "https://discord.com/api/webhooks/CHANGE_ME/CHANGE_ME")
     monkeypatch.delenv("KUMA_PUSH_URL", raising=False)
     assert config.missing_secrets() == ["DISCORD_WEBHOOK_URL", "KUMA_PUSH_URL"]
+
+
+def test_send_returns_the_message_id_and_edit_patches_that_message():
+    seen = []
+
+    def opener(req, timeout):
+        seen.append(req)
+        return FakeResponse(b'{"id": "1199887766554433", "channel_id": "1"}')
+
+    assert notify.send_discord(WEBHOOK + "?thread_id=42", {"content": "facts"}, opener=opener) == "1199887766554433"
+    assert seen[0].full_url == WEBHOOK + "?thread_id=42&wait=true"
+    notify.edit_discord(WEBHOOK + "?thread_id=42", "1199887766554433", {"content": "facts + AI"}, opener=opener)
+    assert seen[1].get_method() == "PATCH"
+    assert seen[1].full_url == WEBHOOK + "/messages/1199887766554433?thread_id=42"
+
+
+def test_odd_responses_give_no_id_and_edit_refuses_a_bad_id():
+    for body in (b"", b"not json", b'{"id": "../../x"}', b"[]"):
+        assert notify.send_discord(WEBHOOK, {}, opener=lambda req, timeout: FakeResponse(body)) is None
+    with pytest.raises(notify.NotifyError):
+        notify.edit_discord(WEBHOOK, "../../evil", {}, opener=lambda req, timeout: FakeResponse(b"{}"))
+
+
+def test_edit_errors_never_contain_the_secret_url():
+    def opener(req, timeout):
+        raise http_error(404)
+
+    with pytest.raises(notify.NotifyError) as e:
+        notify.edit_discord(WEBHOOK, "123", {}, opener=opener)
+    assert "secret-token" not in str(e.value) and "404" in str(e.value)

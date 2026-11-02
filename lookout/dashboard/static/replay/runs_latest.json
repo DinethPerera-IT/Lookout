@@ -101,6 +101,7 @@
     }
    ]
   },
+  "trigger": null,
   "duration_ms": 6000.0
  },
  "recent": [

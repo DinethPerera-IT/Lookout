@@ -16,7 +16,8 @@ SCHEMA = [
         collect_ms REAL, detect_ms REAL, llm_ms REAL, report_ms REAL,
         flags INTEGER, reported INTEGER, suppressed INTEGER, resolved INTEGER,
         delivered INTEGER, ai_status TEXT, model TEXT,
-        snapshot TEXT)""",          # JSON: the status grid at that run (see snapshot())
+        snapshot TEXT,               -- JSON: the status grid at that run (see snapshot())
+        trigger TEXT)""",            # what started it: timer, docker event, OnFailure hook
     """CREATE TABLE IF NOT EXISTS incidents (
         id INTEGER PRIMARY KEY, issue_key TEXT, rule TEXT, kind TEXT, severity TEXT, summary TEXT,
         status TEXT,                 -- open | resolved
@@ -32,15 +33,17 @@ SCHEMA = [
 ]
 
 
-MIGRATIONS = ["ALTER TABLE incidents ADD COLUMN crash TEXT"]
+# Columns added after the first release: (table, column, type). Old state files get them on open.
+MIGRATIONS = [("incidents", "crash", "TEXT"), ("runs", "trigger", "TEXT")]
+PENDING = {"ok": False, "reason": "pending"}   # facts sent; the explanation is still being written
 
 
 def init(conn):
     for statement in SCHEMA:
         conn.execute(statement)
-    columns = {r[1] for r in conn.execute("PRAGMA table_info(incidents)")}
-    if "crash" not in columns:  # state files from before crash evidence existed
-        conn.execute(MIGRATIONS[0])
+    for table, column, kind in MIGRATIONS:
+        if column not in {r[1] for r in conn.execute(f"PRAGMA table_info({table})")}:
+            conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {kind}")
 
 
 def snapshot(facts, known_containers=None):
@@ -69,18 +72,18 @@ def snapshot(facts, known_containers=None):
     }
 
 
-def record(conn, *, started_at, finished_at, mode, timings, result, ai, delivered, snapshot):
+def record(conn, *, started_at, finished_at, mode, timings, result, ai, delivered, snapshot, trigger=None):
     """Store one run and update incidents. Returns the run id."""
     ai = ai or {}
     run_id = conn.execute(
         "INSERT INTO runs (started_at, finished_at, mode, collect_ms, detect_ms, llm_ms, report_ms, flags, "
-        "reported, suppressed, resolved, delivered, ai_status, model, snapshot) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        "reported, suppressed, resolved, delivered, ai_status, model, snapshot, trigger) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         (started_at, finished_at, mode, timings.get("collect_ms"), timings.get("detect_ms"),
          timings.get("llm_ms"), timings.get("report_ms"), len(result["flags"]), len(result["report"]),
          len(result["suppressed"]), len(result["resolved"]), int(delivered),
          None if not ai else ("ok" if ai.get("ok") else ai.get("reason")), ai.get("model"),
-         json.dumps(snapshot))).lastrowid
+         json.dumps(snapshot), trigger)).lastrowid
 
     explanations = dict(ai.get("alerts", [])) if ai.get("ok") else {}
     now = finished_at
@@ -132,6 +135,21 @@ def record(conn, *, started_at, finished_at, mode, timings, result, ai, delivere
         if row is not None:
             _close(conn, row, now, "expired")
     return run_id
+
+
+def update_ai(conn, run_id, result, ai, llm_ms):
+    """Phase 2 of a run: store the explanation (or why there is none) once the model is done."""
+    ai = ai or {}
+    status = "ok" if ai.get("ok") else ai.get("reason", "not run")
+    conn.execute("UPDATE runs SET llm_ms = ?, ai_status = ?, model = ? WHERE id = ?",
+                 (llm_ms, status, ai.get("model"), run_id))
+    explanations = dict(ai.get("alerts", [])) if ai.get("ok") else {}
+    for entry in result["report"]:
+        conn.execute(
+            "UPDATE incidents SET ai_status = ?, ai_model = ?, ai_summary = ?, ai_explanation = ?, next_checks = ? "
+            "WHERE issue_key = ? AND status = 'open'",
+            (status, ai.get("model"), ai.get("summary"), explanations.get(entry["key"]),
+             json.dumps(entry.get("next_checks", [])), entry["key"]))
 
 
 def _ttd(entry, now):

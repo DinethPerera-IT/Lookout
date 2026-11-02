@@ -1,5 +1,6 @@
 """Command-line entry point: python -m lookout --dry-run"""
 import argparse
+import fcntl
 import json
 import os
 import sys
@@ -84,15 +85,42 @@ def explain(args, cfg, result):
     return llm.explain(cfg, result["report"])
 
 
+def run_lock(args, cfg):
+    """One run at a time: the hourly timer, Docker events and OnFailure= hooks can all start
+    one. A second run waits for the first instead of reporting the same thing twice."""
+    if args.dry_run:
+        return None
+    path = state_path(args, cfg).with_suffix(".lock")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fh = open(path, "a")
+    fcntl.flock(fh, fcntl.LOCK_EX)
+    return fh
+
+
 def run(args, cfg):
-    """One full run. State is committed only after the report was delivered, so a
-    failed send can never mark an issue as "already reported".
+    """One full run, in two phases so the AI can never delay an alert:
+
+    1. collect -> detect -> classify -> send the FACTS -> commit state -> heartbeat.
+       State is committed only after the report was delivered, so a failed send can
+       never mark an issue as "already reported".
+    2. Only then: ask the model, store its explanation, and edit the same Discord
+       message to add the AI section. Whatever happens here, the facts are already out.
 
     In shadow mode everything is real (state, cooldowns, heartbeat) except the
     destination: the report goes to the journal and, if configured, a private test
     channel. The real webhook is never used."""
+    lock = run_lock(args, cfg)
+    try:
+        return _run(args, cfg)
+    finally:
+        if lock:
+            lock.close()
+
+
+def _run(args, cfg):
     started = time.time()
     status = "SHADOW · OK" if args.shadow else "OK"
+    prefix = SHADOW_PREFIX if args.shadow else ""
     timings = {}
     facts = collect_all(cfg, COLLECTORS)
     now = time.time()
@@ -103,24 +131,26 @@ def run(args, cfg):
         result = pipeline.run(facts, state, cfg, now)
         for entry in result["report"]:
             entry["detected_at"] = now
-        crash.investigate(result, facts, cfg, now)  # evidence + cause, by code; never raises
+        crash.investigate(result, facts, cfg, now, hints=json.loads(args.hints) if args.hints else None)
         timings["detect_ms"] = (time.time() - now) * 1000
-        t = time.time()
-        ai = explain(args, cfg, result)  # never raises; on any failure the facts go out alone
-        timings["llm_ms"] = (time.time() - t) * 1000 if ai is not None else None
-        crash.apply_ai_checks(result, ai)
-        payload = report.build(result, SHADOW_PREFIX if args.shadow else "", ai=ai)
-        t = time.time()
+        payload = report.build(result, prefix)
         if args.dry_run:
+            ai = explain(args, cfg, result)
+            crash.apply_ai_checks(result, ai)
             print(json.dumps({"result": result, "ai": ai, "discord_payload": payload,
-                              "heartbeat": f"would push status=up msg='{status} · {counts(result, ai)}'"}, indent=2))
+                              "discord_edit_with_ai": report.build(result, prefix, ai=ai) if ai else None,
+                              "heartbeat": f"would push status=up msg='{status} · {counts(result)}'"}, indent=2))
             return 0
+
+        # --- phase 1: facts, now ---------------------------------------------
+        t = time.time()
         if payload and args.shadow:
             print("lookout: shadow report: " + json.dumps(payload, ensure_ascii=False))
         webhook = config.secret("DISCORD_SHADOW_WEBHOOK_URL" if args.shadow else "DISCORD_WEBHOOK_URL")
+        message_id = None
         if payload and webhook:
             try:
-                notify.send_discord(webhook, payload)
+                message_id = notify.send_discord(webhook, payload)
             except notify.NotifyError as e:
                 print(f"lookout: {e}; nothing marked as reported, the next run will retry", file=sys.stderr)
                 try:  # tell Kuma right away instead of waiting for a missed heartbeat
@@ -129,22 +159,37 @@ def run(args, cfg):
                     print(f"lookout: {e2}", file=sys.stderr)
                 return 1
         timings["report_ms"] = (time.time() - t) * 1000
-        history.record(state.conn, started_at=started, finished_at=time.time(),
-                       mode="shadow" if args.shadow else "live",
-                       timings=timings, result=result, ai=ai, delivered=bool(payload and webhook),
-                       snapshot=history.snapshot(facts, state.containers()))
+        will_explain = bool(result["report"]) and not args.no_llm
+        run_id = history.record(state.conn, started_at=started, finished_at=time.time(),
+                                mode="shadow" if args.shadow else "live", timings=timings, result=result,
+                                ai=history.PENDING if will_explain else None, delivered=bool(payload and webhook),
+                                snapshot=history.snapshot(facts, state.containers()), trigger=args.trigger)
         state.commit()
+        try:
+            notify.push_kuma(config.secret("KUMA_PUSH_URL"), "up", f"{status} · {counts(result)}",
+                             (time.time() - started) * 1000)
+        except notify.NotifyError as e:
+            print(f"lookout: {e}", file=sys.stderr)
+            return 1
+        outcome = ("nothing to send" if not payload else "report sent" if webhook else "report logged only")
+        print(f"lookout: {'shadow · ' if args.shadow else ''}{counts(result)} ({outcome})", flush=True)
+
+        # --- phase 2: the optional explanation, added afterwards -----------------
+        if will_explain:
+            t = time.time()
+            ai = explain(args, cfg, result)  # never raises
+            crash.apply_ai_checks(result, ai)
+            history.update_ai(state.conn, run_id, result, ai, (time.time() - t) * 1000)
+            state.commit()
+            if message_id and webhook:
+                try:
+                    notify.edit_discord(webhook, message_id, report.build(result, prefix, ai=ai))
+                except notify.NotifyError as e:
+                    print(f"lookout: {e} (the facts were already delivered)", file=sys.stderr)
+            print(f"lookout: AI: {'ok' if ai['ok'] else ai['reason']}")
+        return 0
     finally:
         state.close()  # without commit() this rolls back
-    try:
-        notify.push_kuma(config.secret("KUMA_PUSH_URL"), "up", f"{status} · {counts(result, ai)}",
-                         (time.time() - started) * 1000)
-    except notify.NotifyError as e:
-        print(f"lookout: {e}", file=sys.stderr)
-        return 1
-    outcome = ("nothing to send" if not payload else "report sent" if webhook else "report logged only")
-    print(f"lookout: {'shadow · ' if args.shadow else ''}{counts(result, ai)} ({outcome})")
-    return 0
 
 
 def run_fixture(args, cfg):
@@ -177,6 +222,8 @@ def main(argv=None):
     parser.add_argument("--shadow", action="store_true",
                         help="real run (state, heartbeat), but the report only goes to the journal and "
                              "DISCORD_SHADOW_WEBHOOK_URL if set; never to DISCORD_WEBHOOK_URL")
+    parser.add_argument("--trigger", help="what started this run, for the record (e.g. 'docker die lookout-demo-oom')")
+    parser.add_argument("--hints", help="JSON from an event: {\"containers\": {name: {\"at\", \"exit_code\", \"oom\"}}}")
     parser.add_argument("--no-llm", action="store_true", help="skip the AI explanation (facts only)")
     parser.add_argument("--env-file", help="load secrets from this file (systemd uses EnvironmentFile= instead)")
     parser.add_argument("--config", help="path to config.toml")

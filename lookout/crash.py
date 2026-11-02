@@ -284,9 +284,23 @@ def target_of(entry, facts):
     return None
 
 
-def investigate(result, facts, cfg, now, collect_container=None, collect_unit=None, recent_changes=None):
+def apply_hints(ev, hint):
+    """An event saw the failure happen: its exact time, exit code and OOM flag beat our estimates."""
+    if not hint:
+        return ev
+    if isinstance(hint.get("at"), (int, float)):
+        ev["failed_at"] = float(hint["at"])
+    if isinstance(hint.get("exit_code"), int):
+        ev["exit_code"] = hint["exit_code"]
+    if hint.get("oom") is True:
+        ev["oom_killed"] = True
+    return ev
+
+
+def investigate(result, facts, cfg, now, collect_container=None, collect_unit=None, recent_changes=None, hints=None):
     """Add crash evidence, a cause and next checks to each reported crash. Never raises:
     a failure to collect evidence becomes a cause of "unknown" that says so."""
+    hints = (hints or {}).get("containers", {}) if isinstance(hints, dict) else {}
     collect_container = collect_container or container_evidence
     collect_unit = collect_unit or unit_evidence
     recent_changes = recent_changes or changes.recent
@@ -297,7 +311,7 @@ def investigate(result, facts, cfg, now, collect_container=None, collect_unit=No
             continue
         kind, name, container = target
         try:
-            ev = (collect_container(cfg, container, facts, now) if kind == "container"
+            ev = (apply_hints(collect_container(cfg, container, facts, now), hints.get(name)) if kind == "container"
                   else collect_unit(cfg, name, facts, now))
             ev["recent_changes"] = recent_changes(cfg, ev, now)
             cause, matches = classify(ev, crit)

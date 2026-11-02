@@ -18,16 +18,34 @@ class NotifyError(Exception):
 
 
 def send_discord(webhook_url, payload, timeout=15, opener=urllib.request.urlopen, sleep=time.sleep):
-    """POST the payload; ?wait=true makes Discord confirm the message was actually created."""
-    req = urllib.request.Request(
-        webhook_url + ("&" if "?" in webhook_url else "?") + "wait=true",
-        data=json.dumps(payload).encode(), method="POST",
-        headers={"Content-Type": "application/json", "User-Agent": USER_AGENT})
+    """POST the payload; ?wait=true makes Discord confirm the message was actually created.
+    Returns the new message's id (used to add the AI section later), or None if not given."""
+    parts = urlsplit(webhook_url)
+    query = dict(parse_qsl(parts.query), wait="true")
+    return _discord(urlunsplit(parts._replace(query=urlencode(query))), "POST", payload, timeout, opener, sleep)
+
+
+def edit_discord(webhook_url, message_id, payload, timeout=15, opener=urllib.request.urlopen, sleep=time.sleep):
+    """Replace the content of a message this webhook sent (PATCH .../messages/<id>)."""
+    if not str(message_id).isdigit():
+        raise NotifyError("Discord edit failed: no message id")
+    parts = urlsplit(webhook_url)
+    url = urlunsplit(parts._replace(path=parts.path.rstrip("/") + f"/messages/{message_id}"))
+    _discord(url, "PATCH", payload, timeout, opener, sleep)
+
+
+def _discord(url, method, payload, timeout, opener, sleep):
+    req = urllib.request.Request(url, data=json.dumps(payload).encode(), method=method,
+                                 headers={"Content-Type": "application/json", "User-Agent": USER_AGENT})
     for attempt in (1, 2):
         try:
             with opener(req, timeout=timeout) as resp:
-                resp.read()
-                return
+                body = resp.read()
+            try:
+                message_id = json.loads(body or b"{}").get("id")
+            except (ValueError, AttributeError):
+                message_id = None
+            return message_id if isinstance(message_id, str) and message_id.isdigit() else None
         except urllib.error.HTTPError as e:
             if e.code == 429 and attempt == 1:
                 try:

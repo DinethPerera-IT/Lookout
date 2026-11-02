@@ -270,6 +270,8 @@ function aiStep(inc) {
     body = h("div", { class: "ai" },
       h("p", null, inc.ai_explanation),
       h("div", { class: "ai-foot" }, `Written by ${inc.ai_model || "a local model"} from the facts and evidence above, then checked by code: no invented numbers or names, no commands, no reassurance. It can't change the facts or the classification.`));
+  } else if (inc.ai_status === "pending") {
+    body = h("div", { class: "muted" }, "The local model is writing an explanation (about a minute on this CPU). The facts above were sent already: the AI never delays an alert.");
   } else if (inc.ai_status && inc.ai_status !== "ok") {
     body = h("div", { class: "muted" }, `No explanation: ${inc.ai_status}. The facts above are complete without it.`);
   } else {
