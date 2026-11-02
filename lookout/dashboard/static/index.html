@@ -3,18 +3,28 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
 <title>Lookout</title>
+<link rel="icon" href="data:,">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<header class="top">
-  <h1>Lookout</h1>
-  <span id="demo-badge" class="badge demo" hidden>DEMO DATA</span>
-  <span id="heartbeat" class="muted"></span>
+<header class="topbar">
+  <a class="brand" href="#/"><span class="brand-mark" aria-hidden="true"></span>Lookout</a>
+  <nav class="tabs" id="tabs">
+    <a href="#/" data-route="overview">Overview</a>
+  </nav>
+  <div class="topbar-right">
+    <span id="demo-badge" class="badge badge-demo" hidden title="Synthetic data bundled with the dashboard, not from a live system">DEMO DATA</span>
+    <span id="live-badge" class="badge badge-live" hidden>LIVE</span>
+    <span id="heartbeat" class="heartbeat"><span class="dot"></span><span class="hb-text">connecting…</span></span>
+  </div>
 </header>
-<main>
-  <section><h2>Incidents</h2><table id="incidents"><tbody></tbody></table></section>
-</main>
+<main id="view" aria-live="polite"></main>
+<footer class="foot">
+  <span>Read-only · deterministic rules decide · the AI only explains</span>
+  <span id="clock" class="num"></span>
+</footer>
 <script src="data.js"></script>
 <script src="app.js"></script>
 </body>

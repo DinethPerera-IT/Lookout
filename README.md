@@ -378,6 +378,17 @@ browser ──GET──> lookout.dashboard (http.server) ──> api.py ──> 
 - **Nothing sensitive on screen.** Every response goes through a scrubber: the redaction rules again, plus IPv4/IPv6, `*.internal`/`.local`/`.lan`/`ts.net` names and this machine's own host name. A test feeds deliberately leaky log lines through the API (and scans the bundled replay files) and fails on any IP, email, MAC, token, password, SSID or host name. That test found a real gap: the redactor missed `SSID 'name'` written with a space instead of `=`. Fixed.
 - **Replay mode.** `python -m lookout.dashboard.sample` chains the scenario fixtures into a synthetic day, runs it through the real pipeline and history code, and exports it through the same API functions and scrubber. The page uses it when the URL has `?replay` or the API can't be reached, and shows a **DEMO DATA** badge.
 
+**Pages.**
+- **Overview:**
+  - stat tiles: open critical and warnings, last run, memory, disk, load
+  - a 24 h incident timeline with a per-run strip
+  - the incident list
+  - a status grid of data sources, failed units and containers
+  Updates arrive live over SSE, and the "last run Xs ago" heartbeat ticks every second (it turns red when the hourly run is overdue).
+- **Incident detail:** six numbered steps, each labelled with *who* produced it: **Facts** (deterministic rule) → **Evidence** (untrusted log text, redacted, shown as plain text) → **Cause classification** (deterministic) → **AI explanation** (badge: *AI · unverified · hypothesis*) → **Suggested next checks** (read-only, never run) → **Time to detect**.
+- **Design:** dark, calm and dense, like a monitoring product. Colour appears only where it means something (red critical, amber warning, green healthy or resolved, violet demo data, slate AI). Numbers use tabular figures. The UI scales with the screen (laptop → 4K TV) and stacks on a phone.
+- **Safety in the browser:** API strings only ever become text nodes. Tests fail if any script uses `innerHTML`/`eval`-style sinks or references an external URL.
+
 **Why no framework (trade-offs).** Stdlib `http.server` + vanilla HTML/CSS/JS, no build step, no CDN:
 - ✅ zero new dependencies, so nothing third-party runs next to (or reads) my logs, and nothing to `npm audit`
 - ✅ works fully offline (expo Wi-Fi!), and the `static/` folder runs on its own with `python3 -m http.server`

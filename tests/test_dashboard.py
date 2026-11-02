@@ -228,3 +228,20 @@ def test_replay_dataset_is_current(tmp_path, cfg):
     for f in tmp_path.glob("*.json"):
         if f.name != "manifest.json":
             assert json.loads(f.read_text()) == json.loads((REPLAY / f.name).read_text()), f.name
+
+
+# --- frontend guarantees ----------------------------------------------------
+
+STATIC = REPLAY.parent
+
+
+def test_frontend_never_injects_html():
+    for f in STATIC.glob("*.js"):
+        code = f.read_text()
+        for sink in ("innerHTML", "outerHTML", "insertAdjacentHTML", "document.write", "eval(", "new Function"):
+            assert sink not in code, f"{f.name} uses {sink}"
+
+
+def test_frontend_works_offline_no_external_urls():
+    for f in [*STATIC.glob("*.js"), *STATIC.glob("*.css"), *STATIC.glob("*.html")]:
+        assert not re.search(r"(?:https?:)?//[\w.-]+\.\w", f.read_text()), f"{f.name} references an external URL"

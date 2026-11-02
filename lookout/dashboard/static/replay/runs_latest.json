@@ -18,15 +18,15 @@
   "snapshot": {
    "collectors": {
     "host": true,
-    "prometheus": false,
+    "prometheus": true,
     "systemd": true,
     "journal": true,
     "docker": true
    },
    "host": {
-    "memory_available_pct": null,
-    "load15": null,
-    "cpus": null,
+    "memory_available_pct": 74.0,
+    "load15": 1.7,
+    "cpus": 4,
     "disks": [
      {
       "mountpoint": "/",

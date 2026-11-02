@@ -28,6 +28,9 @@ BASE = {
     "host": {"ok": True, "disks": [{"mountpoint": "/", "used_pct": 34.0}, {"mountpoint": "/boot/efi", "used_pct": 0.6}],
              "memory": {"available_pct": 74.0, "swap_used_bytes": 0},
              "load": {"load1": 1.4, "load5": 1.6, "load15": 1.7, "cpus": 4}},
+    "prometheus": {"ok": True, "targets": [{"job": "node-exporter", "instance": "localhost:9100", "up": True}],
+                   "disk_used_pct": {}, "disk_avail_predicted_bytes": {}, "mem_min_available_pct": 72.0,
+                   "swap_max_used_bytes": 0, "load15_max": 1.9},
     "systemd": {"ok": True, "failed_units": []},
     "journal": {"ok": True, "by_source": {}, "error_templates": {}, "wifi_reauths": {"window_hours": 24, "count": 0}},
     "docker": {"ok": True, "by_source": {}, "error_templates": {},
@@ -46,6 +49,9 @@ def merge(step_facts, now):
             names = {c["name"] for c in section.get("containers", [])}
             section = {**section, "containers": section.get("containers", []) +
                        [c for c in BASE["docker"]["containers"] if c["name"] not in names]}
+        elif name == "host":  # scenarios set only the numbers they test; keep the rest healthy
+            section = {**facts["host"], **{k: ({**facts["host"][k], **v} if isinstance(v, dict) and k in facts["host"]
+                                               else v) for k, v in section.items()}}
         facts[name] = section
     facts["docker"] = {"checked_at": now, **facts["docker"]}
     return facts
