@@ -7,7 +7,7 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
-from . import config, llm, notify, pipeline, report
+from . import config, history, llm, notify, pipeline, report
 from .collectors import docker, host, journal, prometheus, systemd
 from .state import State
 
@@ -93,14 +93,20 @@ def run(args, cfg):
     channel. The real webhook is never used."""
     started = time.time()
     status = "SHADOW · OK" if args.shadow else "OK"
+    timings = {}
     facts = collect_all(cfg, COLLECTORS)
     now = time.time()
+    timings["collect_ms"] = (now - started) * 1000
     state = open_state(args, cfg)
     try:
         seed_baselines(state, cfg, facts, now)
         result = pipeline.run(facts, state, cfg, now)
+        timings["detect_ms"] = (time.time() - now) * 1000
+        t = time.time()
         ai = explain(args, cfg, result)  # never raises; on any failure the facts go out alone
+        timings["llm_ms"] = (time.time() - t) * 1000 if ai is not None else None
         payload = report.build(result, SHADOW_PREFIX if args.shadow else "", ai=ai)
+        t = time.time()
         if args.dry_run:
             print(json.dumps({"result": result, "ai": ai, "discord_payload": payload,
                               "heartbeat": f"would push status=up msg='{status} · {counts(result, ai)}'"}, indent=2))
@@ -118,6 +124,11 @@ def run(args, cfg):
                 except notify.NotifyError as e2:
                     print(f"lookout: {e2}", file=sys.stderr)
                 return 1
+        timings["report_ms"] = (time.time() - t) * 1000
+        history.record(state.conn, started_at=started, finished_at=time.time(),
+                       mode="shadow" if args.shadow else "live",
+                       timings=timings, result=result, ai=ai, delivered=bool(payload and webhook),
+                       snapshot=history.snapshot(facts, state.containers()))
         state.commit()
     finally:
         state.close()  # without commit() this rolls back

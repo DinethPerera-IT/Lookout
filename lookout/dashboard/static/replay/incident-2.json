@@ -1,0 +1,36 @@
+{
+ "id": 2,
+ "issue_key": "container_down:commoncents",
+ "rule": "container",
+ "kind": "state",
+ "severity": "crit",
+ "summary": "Container commoncents is not running (Exited (137) 10 minutes ago); it was running before",
+ "status": "resolved",
+ "opened_run": 8,
+ "opened_at": 1793523600.0,
+ "last_seen": 1793527200.0,
+ "resolved_at": 1793530800.0,
+ "failed_at": null,
+ "detected_at": 1793523600.0,
+ "time_to_detect_s": null,
+ "evidence": [],
+ "cause": null,
+ "cause_matches": [],
+ "ai_status": null,
+ "ai_model": null,
+ "ai_summary": null,
+ "ai_explanation": null,
+ "next_checks": [],
+ "updates": [
+  {
+   "at": 1793523600.0,
+   "reason": "new",
+   "severity": "crit"
+  },
+  {
+   "at": 1793530800.0,
+   "reason": "resolved",
+   "severity": null
+  }
+ ]
+}

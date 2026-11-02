@@ -1,0 +1,100 @@
+{
+ "now": 1793585220.0,
+ "heartbeat": {
+  "last_run_at": 1793584800.0,
+  "age_s": 420.0,
+  "stale": false,
+  "mode": "live"
+ },
+ "open": {
+  "crit": 1,
+  "warn": 3
+ },
+ "runs_24h": 17,
+ "snapshot": {
+  "collectors": {
+   "host": true,
+   "prometheus": false,
+   "systemd": true,
+   "journal": true,
+   "docker": true
+  },
+  "host": {
+   "memory_available_pct": null,
+   "load15": null,
+   "cpus": null,
+   "disks": [
+    {
+     "mountpoint": "/",
+     "used_pct": 70.0
+    }
+   ],
+   "boot_time": null
+  },
+  "failed_units": [
+   "caddy.service"
+  ],
+  "containers": [
+   {
+    "name": "docker-socket-proxy",
+    "state": "running",
+    "health": "none",
+    "status": "Up 2 weeks"
+   },
+   {
+    "name": "grafana",
+    "state": "running",
+    "health": "none",
+    "status": "Up 2 weeks"
+   },
+   {
+    "name": "homepage",
+    "state": "running",
+    "health": "none",
+    "status": "Up 2 weeks"
+   },
+   {
+    "name": "netdata",
+    "state": "running",
+    "health": "none",
+    "status": "Up 2 weeks"
+   },
+   {
+    "name": "node-exporter",
+    "state": "running",
+    "health": "none",
+    "status": "Up 2 weeks"
+   },
+   {
+    "name": "open-webui",
+    "state": "running",
+    "health": "healthy",
+    "status": "Up 2 weeks"
+   },
+   {
+    "name": "pihole",
+    "state": "running",
+    "health": "healthy",
+    "status": "Up 2 weeks"
+   },
+   {
+    "name": "portainer",
+    "state": "running",
+    "health": "none",
+    "status": "Up 2 weeks"
+   },
+   {
+    "name": "prometheus",
+    "state": "running",
+    "health": "none",
+    "status": "Up 2 weeks"
+   },
+   {
+    "name": "uptime-kuma",
+    "state": "running",
+    "health": "none",
+    "status": "Up 2 weeks"
+   }
+  ]
+ }
+}

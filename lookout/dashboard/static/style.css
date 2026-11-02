@@ -1,0 +1,12 @@
+:root { color-scheme: dark; --bg: #111217; --fg: #d8d9da; --muted: #8e8e93; --line: #26272e;
+        --crit: #e5484d; --warn: #f5a524; --ok: #30a46c; --demo: #6e56cf; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.5 system-ui, sans-serif; }
+.top { display: flex; gap: 16px; align-items: baseline; padding: 16px 24px; border-bottom: 1px solid var(--line); }
+h1 { font-size: 20px; margin: 0; }
+main { padding: 16px 24px; }
+.muted { color: var(--muted); }
+.badge { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 4px; }
+.badge.demo { background: var(--demo); color: #fff; }
+table { border-collapse: collapse; width: 100%; }
+td { padding: 6px 8px; border-bottom: 1px solid var(--line); }
+.sev-crit { color: var(--crit); } .sev-warn { color: var(--warn); }

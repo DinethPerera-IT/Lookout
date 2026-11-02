@@ -5,6 +5,8 @@ run just closes, which rolls back every change, so dry runs never affect what
 later real runs report.
 """
 import sqlite3
+
+from . import history
 from dataclasses import dataclass, field
 
 HOUR = 3600
@@ -102,6 +104,7 @@ class State:
         self.conn.row_factory = sqlite3.Row
         for statement in SCHEMA:
             self.conn.execute(statement)
+        history.init(self.conn)
 
     def commit(self):
         self.conn.commit()

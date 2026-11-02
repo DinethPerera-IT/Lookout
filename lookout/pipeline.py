@@ -76,10 +76,11 @@ def run(facts, state, cfg, now):
                      "warming_up": baseline.hours < cfg["baseline"]["history_hours"]},
         "flags": [f.to_dict() for f in flags],
         "report": [{"key": f.key, "reason": r, "severity": f.severity, "summary": f.summary,
-                    "evidence": f.evidence}
+                    "rule": f.rule, "kind": f.kind, "evidence": f.evidence}
                    for f, r in decision.report],
         "suppressed": [{"key": f.key, "reason": r} for f, r in decision.suppressed],
         "resolved": [{"key": row["key"], "summary": row["summary"]} for row in decision.resolved],
+        "forgotten": list(decision.forget),  # expired events, or resolved issues stable long enough
     }
 
 

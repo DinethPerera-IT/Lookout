@@ -36,6 +36,8 @@ FAKE_KEY = J(["-----BEGIN OPENSSH PRIVATE KEY-----\n", "b3BlbnNzaC1rZXk=\n", "--
      "wlan0: Trying to associate with <mac> (SSID=<ssid> freq=5220 MHz)"),
     ("wlan0: Connected WiFi access point: My Home 12 Street (aa:bb:cc:dd:ee:ff)",
      "wlan0: Connected WiFi access point: <ssid> (<mac>)"),
+    ("wlan0: associated with SSID 'Flat 12 Smith St'", "wlan0: associated with SSID <ssid>"),
+    ('scan result: ssid: "Flat 12 Smith St" signal -61', 'scan result: ssid: <ssid> signal -61'),
     ("CTRL-EVENT-DISCONNECTED bssid=AA:BB:CC:DD:EE:FF reason=3",
      "CTRL-EVENT-DISCONNECTED bssid=<mac> reason=3"),
     ("unknown format k9f8s7d6f5g4h3j2k1l0q9w8e7r6t5y4u3 here", "unknown format <token> here"),

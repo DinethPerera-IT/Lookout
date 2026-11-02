@@ -351,6 +351,40 @@ Updating the code later: `git pull` (or edit), then `sudo deploy/install.sh` aga
 
 **Uninstall:** `sudo systemctl disable --now lookout.timer && sudo rm /etc/systemd/system/lookout.{service,timer} && sudo systemctl daemon-reload && sudo rm -rf /opt/lookout /var/lib/lookout && sudo userdel lookout`.
 
+### Dashboard (expo build)
+
+**What is it?** A read-only web dashboard (`python -m lookout.dashboard`, default `http://127.0.0.1:8088/`) that shows Lookout's heartbeat, the status of services and containers, and every incident with its facts, evidence and explanation.
+
+**How does it work?**
+
+```
+lookout run ──(same transaction as the rest of the state)──> runs + incidents tables (state.sqlite)
+                                                                    │  opened with mode=ro
+browser ──GET──> lookout.dashboard (http.server) ──> api.py ──> scrub ──> JSON / SSE
+        └─ no API reachable, or ?replay ──> static/replay/*.json  (synthetic, "DEMO DATA" badge)
+```
+
+- **History** (`lookout/history.py`). Every real run stores its stage timings (collect, detect, LLM, report), counts, AI status and a code-built status grid. An **incident** is one occurrence of an issue:
+  - it opens when a flag is reported as new or back again
+  - it collects updates (worse, 24 h reminder)
+  - it closes on the resolved notice, or when an event (spike, novel error) expires
+  It's written in the same transaction as the rest of the state, so a dry run or failed delivery leaves no trace.
+- **API** (read-only): `/api/status`, `/api/incidents`, `/api/incidents/<id>`, `/api/runs/latest`, `/api/benchmark`, `/api/stream` (Server-Sent Events: pushes the status whenever a run finishes or an incident changes).
+- **Read-only, enforced:**
+  - SQLite is opened with `?mode=ro`, so the connection *can't* write (tested).
+  - Anything but GET gets 405.
+  - Static files can't escape their folder.
+  - A strict Content-Security-Policy allows no inline or third-party scripts.
+- **Nothing sensitive on screen.** Every response goes through a scrubber: the redaction rules again, plus IPv4/IPv6, `*.internal`/`.local`/`.lan`/`ts.net` names and this machine's own host name. A test feeds deliberately leaky log lines through the API (and scans the bundled replay files) and fails on any IP, email, MAC, token, password, SSID or host name. That test found a real gap: the redactor missed `SSID 'name'` written with a space instead of `=`. Fixed.
+- **Replay mode.** `python -m lookout.dashboard.sample` chains the scenario fixtures into a synthetic day, runs it through the real pipeline and history code, and exports it through the same API functions and scrubber. The page uses it when the URL has `?replay` or the API can't be reached, and shows a **DEMO DATA** badge.
+
+**Why no framework (trade-offs).** Stdlib `http.server` + vanilla HTML/CSS/JS, no build step, no CDN:
+- ✅ zero new dependencies, so nothing third-party runs next to (or reads) my logs, and nothing to `npm audit`
+- ✅ works fully offline (expo Wi-Fi!), and the `static/` folder runs on its own with `python3 -m http.server`
+- ✅ the whole thing is small enough to read and explain
+- ❌ more hand-written code (routing, SSE, rendering), and no component library
+- ❌ `http.server` isn't built for the open internet. That's fine here: it binds to localhost, Caddy fronts it on the LAN/Tailscale only, and it's read-only anyway
+
 ## Usage
 
 ```bash
@@ -362,6 +396,8 @@ python3 -m lookout --env-file .env --fixture tests/fixtures/scenarios/discord_te
 python3 -m lookout --dry-run --stage collect   # just the collected facts
 python3 -m lookout --fixture tests/fixtures/scenarios/flapping.json   # replay a scenario
 echo 'password=hunter2' | python3 -m lookout.redact   # try the redactor
+python3 -m lookout.dashboard            # dashboard on http://127.0.0.1:8088/ (add ?replay for demo data)
+python3 -m lookout.dashboard.sample     # rebuild the bundled replay dataset
 ```
 
 No third-party runtime dependencies (stdlib only). Tests need pytest:

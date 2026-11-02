@@ -1,0 +1,88 @@
+"""The dashboard's data: pure functions from a read-only SQLite connection to dicts.
+
+The live server and the replay exporter both call these, so the demo dataset has
+exactly the shape (and goes through exactly the same scrubbing) as live data.
+"""
+import json
+from pathlib import Path
+
+STALE_AFTER = 2 * 3600 + 600   # the timer runs hourly; two missed runs = stale
+BENCH_DIR = Path(__file__).resolve().parent.parent.parent / "bench" / "results"
+_JSON_FIELDS = ("evidence", "cause_matches", "next_checks", "updates")
+
+
+def _incident(row, full=False):
+    d = dict(row)
+    for f in _JSON_FIELDS:
+        d[f] = json.loads(d[f]) if d.get(f) else []
+    if not full:
+        d = {k: d[k] for k in ("id", "issue_key", "rule", "kind", "severity", "summary", "status", "opened_at",
+                               "last_seen", "resolved_at", "time_to_detect_s", "cause")}
+    return d
+
+
+def _run(row):
+    if row is None:
+        return None
+    d = dict(row)
+    d["snapshot"] = json.loads(d["snapshot"]) if d["snapshot"] else None
+    d["duration_ms"] = (d["finished_at"] - d["started_at"]) * 1000
+    return d
+
+
+def latest_run(conn):
+    return _run(conn.execute("SELECT * FROM runs ORDER BY id DESC LIMIT 1").fetchone())
+
+
+def status(conn, now):
+    run = latest_run(conn)
+    counts = {r["severity"]: r["n"] for r in conn.execute(
+        "SELECT severity, count(*) AS n FROM incidents WHERE status = 'open' GROUP BY severity")}
+    age = None if run is None else max(0.0, now - run["finished_at"])
+    return {
+        "now": now,
+        "heartbeat": {"last_run_at": run and run["finished_at"], "age_s": age,
+                      "stale": age is None or age > STALE_AFTER, "mode": run and run["mode"]},
+        "open": {"crit": counts.get("crit", 0), "warn": counts.get("warn", 0)},
+        "runs_24h": conn.execute("SELECT count(*) FROM runs WHERE finished_at > ?", (now - 86400,)).fetchone()[0],
+        "snapshot": run and run["snapshot"],
+    }
+
+
+def incidents(conn, limit=100):
+    rows = conn.execute("SELECT * FROM incidents ORDER BY coalesce(resolved_at, last_seen) DESC, id DESC LIMIT ?",
+                        (limit,))
+    return {"incidents": [_incident(r) for r in rows]}
+
+
+def incident(conn, incident_id):
+    row = conn.execute("SELECT * FROM incidents WHERE id = ?", (incident_id,)).fetchone()
+    return None if row is None else _incident(row, full=True)
+
+
+def runs_latest(conn, recent=24):
+    run = latest_run(conn)
+    rows = conn.execute("SELECT id, finished_at, started_at, flags, reported, suppressed, resolved, ai_status, "
+                        "collect_ms, detect_ms, llm_ms, report_ms FROM runs ORDER BY id DESC LIMIT ?", (recent,))
+    return {"run": run, "recent": [dict(r) for r in rows][::-1]}
+
+
+def signature(conn):
+    """Changes whenever a run finishes or an incident changes: the SSE stream's trigger."""
+    return tuple(conn.execute(
+        "SELECT (SELECT max(id) FROM runs), (SELECT count(*) FROM incidents), "
+        "(SELECT max(coalesce(resolved_at, last_seen)) FROM incidents)").fetchone())
+
+
+def benchmark(bench_dir=BENCH_DIR):
+    """The latest Phase 6 benchmark: summary rows, the pick, and per-case failures."""
+    files = sorted(Path(bench_dir).glob("*.json"))
+    if not files:
+        return None
+    data = json.loads(files[-1].read_text())
+    keep = ("model", "mode", "calls", "median_s", "max_s", "load_s", "gen_tps", "ram_gb", "raw_json",
+            "parsed_json", "passed", "invented", "missed_alert", "dismissive", "command", "injection_echo")
+    failures = [{"model": r["model"], "case": r["case"], "problems": r["problems"]}
+                for r in data["records"] if r.get("problems")]
+    return {"meta": data["meta"], "pick": data["pick"], "rows": [{k: r.get(k) for k in keep} for r in data["rows"]],
+            "failures": failures}

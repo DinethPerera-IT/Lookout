@@ -94,3 +94,11 @@ think = false                  # always sent as "think": false
 timeout_seconds = 600          # a slow summary is fine; a missing one falls back to facts only
 num_ctx = 4096
 num_predict = 600
+
+[dashboard]
+# python -m lookout.dashboard: read-only web UI. Keep it on localhost; Caddy fronts it on the LAN.
+bind = "127.0.0.1"
+port = 8088
+# Extra words scrubbed from every API response, on top of this machine's own host name,
+# IPs and *.internal/.local/.lan/ts.net names (e.g. Tailscale machine names).
+hide_names = []

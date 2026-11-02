@@ -45,7 +45,7 @@ RULES = [
     ("query_secret", re.compile(r"([?&](?:key|sig|signature|code|state)=)[^&\s]+"), r"\1<redacted>"),
     ("email", re.compile(r"\b[\w.+-]+@[\w-]+(?:\.[\w-]+)+\b"), "<email>"),
     # WiFi network names: wpa_supplicant and systemd-networkd formats
-    ("ssid", re.compile(r"(?i)(\bssid=)('[^']*'|\"[^\"]*\")"), r"\1<ssid>"),
+    ("ssid", re.compile(r"(?i)(\bssid\s*[=:]?\s*)('[^']*'|\"[^\"]*\")"), r"\1<ssid>"),
     ("ssid_networkd", re.compile(r"(Connected WiFi access point: ).+?( \(|$)"), r"\1<ssid>\2"),
     ("mac", re.compile(r"\b[0-9A-Fa-f]{2}(?::[0-9A-Fa-f]{2}){5}\b"), "<mac>"),
     # Catch-alls for unknown token formats: long runs mixing letters and digits
